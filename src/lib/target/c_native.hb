@@ -1,0 +1,6 @@
+malloc := fn(size: uint): ?^void @import()
+free := fn(ptr: ^void): void @import()
+memmove := fn(dest: ^void, src: ^void, size: uint): void @import()
+memcopy := fn(dest: ^void, src: ^void, size: uint): void @import()
+memset := fn(dest: ^void, src: ^void, size: uint): void @import()
+exit := fn(code: int): void @import()

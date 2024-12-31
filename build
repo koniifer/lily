@@ -1,0 +1,54 @@
+#!/bin/sh
+set -eu
+
+build_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+arg=${1:-""}
+default_linker=${2:-""}
+
+if [ "$arg" = "help" ]; then
+    echo "no arguments: build [OPTIONAL: linker]"
+    echo "run [OPTIONAL: linker]: build and run"
+    echo "help: show this"
+    echo "example: ./build run"
+    echo "example: ./build run 'zig cc'"
+    exit 0
+fi
+
+if ! command -v hbc > /dev/null 2>&1; then
+    echo "hblang compiler (hbc) not found. install it with:" >&2
+    echo "cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc" >&2
+    exit 1
+fi
+
+linker=$default_linker
+if [ -z "$linker" ]; then
+    set -- "zig cc" "clang" "gcc"
+    for linker; do 
+        cmd=$(echo "$linker" | awk '{print $1}')
+        if command -v "$cmd" > /dev/null 2>&1; then break; fi
+    done
+
+    if [ -z "$linker" ]; then
+        echo "could not find any of the following:" "$@" ". please install any, or add to PATH." >&2
+        exit 1
+    fi
+fi
+
+if ! [ -e "$build_dir/target/build" ]; then
+    mkdir -p "$build_dir/target/build"
+elif ! [ -w "$build_dir/target/build" ]; then
+    echo "$build_dir/target/build is not writable." >&2
+    exit 1
+fi
+
+if hbc "$build_dir/src/main.hb" > "$build_dir/target/build/lily.o"; then
+    $linker "$build_dir/target/build/lily.o" -o "$build_dir/target/lily"
+    strip -s "$build_dir/target/lily"
+else
+    echo "compilation failed :(" >&2
+    exit 1
+fi
+
+if [ "$arg" = "run" ]; then
+    "$build_dir"/target/lily
+fi
