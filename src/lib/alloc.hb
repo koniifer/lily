@@ -24,7 +24,8 @@ SimpleAllocator := struct {
 			} else if target == target_hbvm_ableos {
 				target.free(alloced.ptr, alloced.len)
 			}
-		};
+		}
+		self.allocations.deinit();
 		*self = Self.new()
 	}
 	alloc := fn(self: ^Self, $T: type, count: uint): ?^T {
