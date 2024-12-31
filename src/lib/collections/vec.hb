@@ -24,12 +24,12 @@ Vec := fn($T: type, $A: type): type return struct {
 			// ! (compiler?) bug: null check broken, so unwrapping (unsafe!)
 			new_alloc := @unwrap(self.allocator.alloc(T, self.cap))
 
-			if self.slice.len != 0 {
+			if self.slice.len > 0 {
 				target.memmove(@bitcast(new_alloc), @bitcast(self.slice.ptr), self.slice.len * @sizeof(T))
 				self.allocator.free(T, self.slice.ptr)
 			}
-			self.slice.ptr = @as(^T, new_alloc)
-		};
+			self.slice.ptr = new_alloc
+		}
 		self.slice[self.slice.len] = value
 		self.slice.len += 1
 	}
@@ -45,9 +45,8 @@ Vec := fn($T: type, $A: type): type return struct {
 	$get_ref_unchecked := fn(self: ^Self, n: uint): T return self.slice.ptr + n
 	pop := fn(self: ^Self): Result(T, Error) {
 		if self.slice.len == 0 return Result(T, Error).err(.OutOfRange)
-		temp := self.slice[self.slice.len - 1]
-		self.slice = self.slice[..self.slice.len - 1]
-		return Result(T, Error).ok(temp)
+		self.slice.len -= 1
+		return Result(T, Error).ok(self.slice[self.slice.len + 1])
 	}
 	$len := fn(self: ^Self): uint return self.slice.len
 	$capacity := fn(self: ^Self): uint return self.cap
