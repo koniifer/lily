@@ -4,6 +4,7 @@ use `./build -h` to see available arguments. supports:
 - changing target
 - custom linker (for `c_native`)
 - running the executable (for `c_native`)
+- setting output path
 
 > [!IMPORTANT]
 > all features, targets, etc, are provisional and subject to change

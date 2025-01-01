@@ -14,7 +14,7 @@ main := fn(argc: uint, argv: []^void): uint {
 	loop if i == 5 break else {
 		defer i += 1
 		vec.push(i)
-		lily.log.print("pushed to vec\0")
+		lily.log.info("pushed to vec\0")
 	}
 
 	return 0

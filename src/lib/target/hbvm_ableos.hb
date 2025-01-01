@@ -1,4 +1,4 @@
-.{log: .{LogLevel}} := @use("../lib.hb")
+.{log: .{LogLevel}, null_pointer} := @use("../lib.hb")
 
 $PAGE_SIZE := 4096
 $MAX_ALLOC := 0xFF
@@ -27,7 +27,7 @@ malloc := fn(size: uint): ?^void {
 }
 
 free := fn(ptr: ^void, size: uint): void {
-	if size == 0 | ptr == @bitcast(0) return;
+	if size == 0 | ptr == null_pointer(void) return;
 	pages := calculate_pages(size)
 	free_pages(ptr, pages)
 }

@@ -1,4 +1,4 @@
-.{collections: .{Vec}, target, target_c_native, target_hbvm_ableos} := @use("lib.hb")
+.{collections: .{Vec}, target, target_c_native, target_hbvm_ableos, null_pointer} := @use("lib.hb")
 
 Allocation := struct {
 	ptr: ^void,
@@ -67,7 +67,7 @@ RawAllocator := struct {
 	old_ptr: ^void,
 	size: uint,
 	old_size: uint,
-	$new := fn(): Self return .(@bitcast(0), @bitcast(0), 0, 0)
+	$new := fn(): Self return .(null_pointer(void), null_pointer(void), 0, 0)
 	deinit := fn(self: ^Self): void {
 		if target == target_c_native {
 			target.free(self.ptr)

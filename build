@@ -6,12 +6,20 @@ build_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 linker=""
 target="c_native"
 run=0
+out="$build_dir/target/lily"
 
 make_build_dir(){
     if ! [ -e "$build_dir/target/build" ]; then
         mkdir -p "$build_dir/target/build"
     elif ! [ -w "$build_dir/target/build" ]; then
         echo "$build_dir/target/build is not writable." >&2
+        exit 1
+    fi
+}
+
+check_out_dir(){
+    if ! [ -w "$(dirname "${out}")" ]; then
+        printf "ERROR: Out directory does not exist or is not writeable"
         exit 1
     fi
 }
@@ -27,6 +35,7 @@ while :; do
     -r/--run: run (Available only on target=c_native)
     -l/--linker: set linker (Available only on target=c_native)
     -t/--target: set target (One of: c_native, hbvm_ableos)
+    -o/--out: set output path
     -h/--help: show help
 examples
     ./build -t hbvm_ableos
@@ -68,6 +77,22 @@ examples
             printf 'ERROR: "--linker" requires a non-empty option argument.\n' >&2
             exit 1
         ;;
+        -o|--out)
+            if [ -n "${2:-}" ]; then
+                out="${2:-}"
+                shift
+            else
+                printf "ERROR: '--out' requires a non-empty option argument." >&2
+                exit 1
+            fi
+        ;;
+        --out=?*)
+            out=${1#*=}
+        ;;
+        --out=)
+            printf 'ERROR: "--out" requires a non-empty option argument.\n' >&2
+            exit 1
+        ;;
         --)
             shift
             break
@@ -90,7 +115,6 @@ if [ $run = 1 ] && [ "$target" = "hbvm_ableos" ]; then
     exit 1
 fi
 
-
 if ! command -v hbc > /dev/null 2>&1; then
     printf "Error: hblang compiler not found. Install it with:
 cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc --force" >&2
@@ -112,10 +136,11 @@ if [ "$target" = "c_native" ]; then
     fi
 
     make_build_dir
+    check_out_dir
     set_target
 
     if hbc "$build_dir/src/main.hb" --backend-flags=opt_level=speed > "$build_dir/target/build/lily.o"; then
-        $linker "$build_dir/target/build/lily.o" -o "$build_dir/target/lily"
+        $linker "$build_dir/target/build/lily.o" -o "$out"
         strip -s "$build_dir/target/lily"
     else
         echo "compilation failed :(" >&2
@@ -126,8 +151,10 @@ if [ "$target" = "c_native" ]; then
     fi
 elif [ "$target" = "hbvm_ableos" ]; then
     make_build_dir
+    check_out_dir
     set_target
-    if ! hbc "$build_dir/src/main.hb" --target=unknown-virt-unknown > "$build_dir/target/build/lily.hbf"; then
+    if [ "$out" = "$build_dir/target/lily" ]; then out="$build_dir/target/lily.hbf"; fi
+    if ! hbc "$build_dir/src/main.hb" --target=unknown-virt-unknown > "$out"; then
         echo "compilation failed :(" >&2
         exit 1
     fi
