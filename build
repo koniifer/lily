@@ -41,7 +41,7 @@ elif ! [ -w "$build_dir/target/build" ]; then
     exit 1
 fi
 
-if hbc "$build_dir/src/main.hb" > "$build_dir/target/build/lily.o"; then
+if hbc "$build_dir/src/main.hb" --backend-flags=opt_level=speed > "$build_dir/target/build/lily.o"; then
     $linker "$build_dir/target/build/lily.o" -o "$build_dir/target/lily"
     strip -s "$build_dir/target/lily"
 else

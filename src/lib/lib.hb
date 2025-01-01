@@ -4,11 +4,12 @@ Version := struct {
 	patch: uint,
 }
 
-$STDLIB_VERSION := Version(0, 0, 1)
+$VERSION := Version(0, 0, 2)
 
 collections := @use("collections/lib.hb")
 result := @use("result.hb")
 alloc := @use("alloc.hb")
+log := @use("log.hb")
 
 target_c_native := @use("target/c_native.hb")
 target_hbvm_ableos := @use("target/hbvm_ableos.hb")
@@ -35,6 +36,8 @@ Kind := enum {
 	Const,
 	Module,
 }
+
+$null_pointer := fn($T: type): ^T return @bitcast(0)
 
 Type := fn($T: type): type return struct {
 	$is_unsigned_int := fn(): bool {
