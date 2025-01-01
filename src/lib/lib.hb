@@ -14,7 +14,7 @@ log := @use("log.hb")
 target_c_native := @use("target/c_native.hb")
 target_hbvm_ableos := @use("target/hbvm_ableos.hb")
 // target := target_hbvm_ableos
-target := target_c_native
+target := @use("target/target.hb").target
 
 $exit := fn(code: int): void {
 	_ = target.exit(code)

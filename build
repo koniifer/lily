@@ -2,53 +2,133 @@
 set -eu
 
 build_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-arg=${1:-""}
-default_linker=${2:-""}
 
-if [ "$arg" = "help" ]; then
-    echo "no arguments: build [OPTIONAL: linker]"
-    echo "run [OPTIONAL: linker]: build and run"
-    echo "help: show this"
-    echo "example: ./build run"
-    echo "example: ./build run 'zig cc'"
-    exit 0
-fi
+linker=""
+target="c_native"
+run=0
 
-if ! command -v hbc > /dev/null 2>&1; then
-    echo "hblang compiler (hbc) not found. install it with:" >&2
-    echo "cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc" >&2
-    exit 1
-fi
-
-linker=$default_linker
-if [ -z "$linker" ]; then
-    set -- "zig cc" "clang" "gcc"
-    for linker; do 
-        cmd=$(echo "$linker" | awk '{print $1}')
-        if command -v "$cmd" > /dev/null 2>&1; then break; fi
-    done
-
-    if [ -z "$linker" ]; then
-        echo "could not find any of the following:" "$@" ". please install any, or add to PATH." >&2
+make_build_dir(){
+    if ! [ -e "$build_dir/target/build" ]; then
+        mkdir -p "$build_dir/target/build"
+    elif ! [ -w "$build_dir/target/build" ]; then
+        echo "$build_dir/target/build is not writable." >&2
         exit 1
     fi
-fi
+}
 
-if ! [ -e "$build_dir/target/build" ]; then
-    mkdir -p "$build_dir/target/build"
-elif ! [ -w "$build_dir/target/build" ]; then
-    echo "$build_dir/target/build is not writable." >&2
+set_target(){
+    echo "target := @use(\"./$target.hb\")" > "$build_dir/src/lib/target/target.hb"
+}
+
+while :; do 
+    case ${1:-""} in
+        -h|--help)
+            printf "build script
+    -r/--run: run (Available only on target=c_native)
+    -l/--linker: set linker (Available only on target=c_native)
+    -t/--target: set target (One of: c_native, hbvm_ableos)
+    -h/--help: show help
+examples
+    ./build -t hbvm_ableos
+    ./build -r -l 'zig cc' -t c_native"
+            exit
+        ;;
+        -r|--run)
+            run=1
+        ;;
+        -t|--target)
+            if [ -n "${2:-}" ]; then
+                target="${2:-}"
+                shift
+            else
+                printf "ERROR: '--target' requires a non-empty option argument." >&2
+                exit 1
+            fi
+        ;;
+        --target=?*)
+            target=${1#*=}
+        ;;
+        --target=)
+            printf 'ERROR: "--target" requires a non-empty option argument.\n' >&2
+            exit 1
+        ;;
+        -l|--linker)
+            if [ -n "${2:-}" ]; then
+                linker="${2:-}"
+                shift
+            else
+                printf "ERROR: '--linker' requires a non-empty option argument." >&2
+                exit 1
+            fi
+        ;;
+        --linker=?*)
+            linker=${1#*=}
+        ;;
+        --linker=)
+            printf 'ERROR: "--linker" requires a non-empty option argument.\n' >&2
+            exit 1
+        ;;
+        --)
+            shift
+            break
+        ;;
+        -?*)
+            printf "ERROR: Unknown option %s\n" "$1" >&2
+        ;;
+        *)
+            break
+    esac
+    shift
+done
+
+if [ -n "$linker" ] && [ "$target" = "hbvm_ableos" ]; then
+    printf "ERROR: Linker cannot be set with target 'hbvm_ableos'"
+    exit 1
+fi
+if [ $run = 1 ] && [ "$target" = "hbvm_ableos" ]; then
+    printf "ERROR: ./build does not support running the executable with target 'hbvm_ableos'"
     exit 1
 fi
 
-if hbc "$build_dir/src/main.hb" --backend-flags=opt_level=speed > "$build_dir/target/build/lily.o"; then
-    $linker "$build_dir/target/build/lily.o" -o "$build_dir/target/lily"
-    strip -s "$build_dir/target/lily"
-else
-    echo "compilation failed :(" >&2
+
+if ! command -v hbc > /dev/null 2>&1; then
+    printf "Error: hblang compiler not found. Install it with:
+cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc --force" >&2
     exit 1
 fi
 
-if [ "$arg" = "run" ]; then
-    "$build_dir"/target/lily
+if [ "$target" = "c_native" ]; then
+    if [ -z "$linker" ]; then
+        set -- "zig cc" "clang" "gcc"
+        for linker; do 
+            cmd=$(echo "$linker" | awk '{print $1}')
+            if command -v "$cmd" > /dev/null 2>&1; then break; fi
+        done
+
+        if [ -z "$linker" ]; then
+            echo "Could not find any of the following:" "$@" ". please install any, or add to PATH." >&2
+            exit 1
+        fi
+    fi
+
+    make_build_dir
+    set_target
+
+    if hbc "$build_dir/src/main.hb" --backend-flags=opt_level=speed > "$build_dir/target/build/lily.o"; then
+        $linker "$build_dir/target/build/lily.o" -o "$build_dir/target/lily"
+        strip -s "$build_dir/target/lily"
+    else
+        echo "compilation failed :(" >&2
+        exit 1
+    fi
+    if [ $run = 1 ] && [ ! "$target" = "hbvm_ableos" ]; then
+        "$build_dir"/target/lily
+    fi
+elif [ "$target" = "hbvm_ableos" ]; then
+    make_build_dir
+    set_target
+    if ! hbc "$build_dir/src/main.hb" --target=unknown-virt-unknown > "$build_dir/target/build/lily.hbf"; then
+        echo "compilation failed :(" >&2
+        exit 1
+    fi
 fi
