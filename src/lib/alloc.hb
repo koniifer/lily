@@ -17,12 +17,11 @@ SimpleAllocator := struct {
 	deinit := fn(self: ^Self): void {
 		loop if self.allocations.len == 0 break else {
 			alloced := self.allocations.pop()
-			if alloced != null {
-				if target == target_c_native {
-					target.free(alloced.ptr)
-				} else if target == target_hbvm_ableos {
-					target.free(alloced.ptr, alloced.len)
-				}
+			if alloced == null continue
+			if target == target_c_native {
+				target.free(alloced.ptr)
+			} else if target == target_hbvm_ableos {
+				target.free(alloced.ptr, alloced.len)
 			}
 		}
 		self.allocations.deinit()

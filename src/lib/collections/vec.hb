@@ -1,4 +1,4 @@
-.{target, target_c_native, target_hbvm_ableos, result: .{Result}, null_pointer} := @use("../lib.hb");
+.{target, log, target_c_native, target_hbvm_ableos, result: .{Result}, null_pointer} := @use("../lib.hb");
 .{Error} := @use("lib.hb")
 
 Vec := fn($T: type, $A: type): type return struct {
@@ -23,7 +23,7 @@ Vec := fn($T: type, $A: type): type return struct {
 				self.capacity *= 2
 			}
 
-			// ! (compiler?) bug: null check broken, so unwrapping (unsafe!)
+			// ! (c_native) (compiler) bug: null check broken, so unwrapping (unsafe!)
 			new_alloc := @unwrap(self.allocator.alloc(?T, self.capacity))
 
 			if self.slice.len > 0 {
@@ -37,19 +37,24 @@ Vec := fn($T: type, $A: type): type return struct {
 		self.len += 1
 	}
 	get := fn(self: ^Self, n: uint): ?T {
-		loop if n >= self.len return null else {
-			a := self.slice[n]
-			if a != null return a
-			n += 1
+		m := 0
+		j := 0
+		loop if m == self.slice.len return null else {
+			a := self.slice[m]
+			if a != null {
+				if j == n return a
+				j += 1
+			}
+			m += 1
 		}
 	}
 	pop := fn(self: ^Self): ?T {
 		if self.len == 0 return null
 		n := self.slice.len - 1
-		loop {
+		loop if n == 0 return null else {
 			a := self.slice[n]
 			if a != null {
-				self.slice.len -= 1
+				self.slice[n] = null
 				self.len -= 1
 				return a
 			}
@@ -57,14 +62,26 @@ Vec := fn($T: type, $A: type): type return struct {
 		}
 	}
 	remove := fn(self: ^Self, n: uint): ?T {
-		loop if n >= self.len return null else {
-			a := self.slice[n]
+		if self.len == 0 return null
+		m := 0
+		j := 0
+		loop if m == self.slice.len return null else {
+			a := self.slice[m]
 			if a != null {
-				self.slice[n] = null
-				self.len -= 1
-				return a
+				// ! (compiler) bug: This print causes compiler panic
+				printf("%d\n\0".ptr, a)
+				if j == n {
+					self.slice[m] = null
+					self.len -= 1
+					// ! (compiler) bug: This print happens but we never see the "zub zub {a}" in main.hb?????
+					printf("here: %d\n\0".ptr, a)
+					return a
+				}
+				j += 1
 			}
-			n += 1
+			m += 1
 		}
 	}
 }
+
+printf := fn(str: ^u8, u: uint): void @import()
