@@ -1,197 +1,167 @@
 #!/bin/sh
 set -eu
 
-build_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
-check_for_update=0
+SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
+readonly SCRIPT_DIR
+readonly HBC_COMMIT="18e8a831"
+readonly SRC_DIR="$SCRIPT_DIR/src"
+readonly DEFAULT_OUT="$SCRIPT_DIR/target/lily"
+readonly BUILD_PATH="$SCRIPT_DIR/target/build"
+readonly CHECKSUM_FILE="$BUILD_PATH/checksum"
+readonly TARGET_FILE="$SRC_DIR/lib/target/target.hb"
+
 linker=""
 target="c_native"
 run=0
-out="$build_dir/target/lily"
+out="$DEFAULT_OUT"
 
-make_build_dir() {
-    if ! [ -e "$build_dir/target/build" ]; then
-        mkdir -p "$build_dir/target/build"
-    elif ! [ -w "$build_dir/target/build" ]; then
-        echo "$build_dir/target/build is not writable." >&2
-        exit 1
-    fi
+die() {
+    printf "ERROR: %s\n" "$1" >&2
+    exit 1
+}
+
+log() {
+    printf "INFO: %s\n" "$1" >&2
 }
 
 check_hbc() {
-    has_hbc=1
-    if ! command -v hbc >/dev/null 2>&1; then
-        printf "Warning: hblang compiler not found in \$PATH\n"
-        has_hbc=0
-    fi
-    if command -v cargo >/dev/null 2>&1; then
-        cargo_output=$(cargo install --list | grep 'holey-bytes#' | awk -F'#' '{print substr($2, 1, 8)}')
+    command -v hbc >/dev/null 2>&1 || {
+        log "hblang compiler not found in \$PATH"
+        command -v cargo >/dev/null 2>&1 || die "hblang compiler is missing, and could not use cargo to install"
+    }
 
-        if [ -z "$cargo_output" ] && [ $has_hbc = 0 ]; then
-            printf "Note: Installing hblang compiler using cargo\n"
-            if ! cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc >/dev/null 2>&1; then
-                printf "Failed to install hblang compiler for whatever reason\n"
-                exit 1
-            fi
-            printf "Done installing\n"
-            return
-        fi
-        if [ $check_for_update = 1 ]; then
-            short_commit_hash=""
-            response=$(curl -s "https://git.ablecorp.us/api/v1/repos/ableos/holey-bytes/commits?limit=1")
-            if [ -n "$response" ]; then
-                commit_hash=$(printf '%s' "$response" | jq -r '.[0].sha' 2>/dev/null)
-                if [ -n "$commit_hash" ] && [ ! "$commit_hash" = "null" ]; then
-                    short_commit_hash="$(printf '%s' "$commit_hash" | cut -c 1-8)"
-                fi
-            fi
-            if [ -n "$short_commit_hash" ]; then
-                if [ ! "$short_commit_hash" = "$cargo_output" ] && [ $has_hbc = 1 ]; then
-                    printf "hblang compiler is out of date"
-                fi
-            fi
-        fi
-    elif [ $has_hbc = 0 ]; then
-        printf "Error: hblang compiler is missing, and could not use cargo to install hblang compiler."
-        exit 1
-    fi
+    command -v cargo >/dev/null 2>&1 && {
+        cargo_ver=$(cargo install --list | awk '/holey-bytes/ {match($0, /[0-9a-f]{8}/); if (RSTART) print substr($0, RSTART, 8)}')
+        [ "${cargo_ver:-}" = "$HBC_COMMIT" ] && return 0
+
+        log "Local hbc version: ${cargo_ver:-None}, Required: $HBC_COMMIT. Installing correct version..."
+        cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc --debug --rev "$HBC_COMMIT" >/dev/null 2>&1 ||
+            die "Failed to install hblang compiler"
+        log "hblang compiler installed successfully"
+    }
 }
 
-check_out_dir() {
-    if ! [ -w "$(dirname "${out}")" ]; then
-        printf "ERROR: Out directory does not exist or is not writeable"
-        exit 1
-    fi
+check_changes() {
+    [ -r "$CHECKSUM_FILE" ] && previous_checksum=$(cat "$CHECKSUM_FILE")
+    current_checksum=$(printf "%s%s%s%s" \
+        "$(find "$SRC_DIR" -type f -exec md5sum {} + | sort | md5sum)" \
+        "$linker" "$out" "$target" | md5sum)
+    echo "$current_checksum" >"$CHECKSUM_FILE"
+    [ "${previous_checksum:-}" != "$current_checksum" ]
 }
 
-set_target() {
-    echo "target := @use(\"./$target.hb\")" >"$build_dir/src/lib/target/target.hb"
-}
-
-while :; do
-    case ${1:-""} in
-    -h | --help)
-        printf "build script
-    -r/--run: run (Available only on target=c_native)
-    -l/--linker: set linker (Available only on target=c_native)
-    -t/--target: set target (One of: c_native, hbvm_ableos)
-    -o/--out: set output path
-    -h/--help: show help
-examples
-    ./build -t hbvm_ableos
-    ./build -r -l 'zig cc' -t c_native"
-        exit
-        ;;
-    -r | --run)
-        run=1
-        ;;
-    -t | --target)
-        if [ -n "${2:-}" ]; then
-            target="${2:-}"
+parse_args() {
+    while [ $# -gt 0 ]; do
+        case ${1:-""} in
+        -h | --help)
+            cat <<EOF
+Build Script
+Usage: $0 [options]
+    -r, --run               Run the compiled output (Available only on target=c_native)
+    -l, --linker <linker>   Specify linker (Available only on target=c_native)
+    -t, --target <target>   Specify target (One of: c_native, hbvm_ableos)
+    -o, --out <path>        Set output path
+    -h, --help              Show this help message
+Examples:
+    $0 -t hbvm_ableos
+    $0 -r -l 'zig cc' -t c_native
+    $0 -r
+EOF
+            exit
+            ;;
+        -r | --run) run=1 ;;
+        -t | --target)
+            [ -z "${2:-}" ] && die "'--target' requires a non-empty option argument"
+            target=$2
             shift
-        else
-            printf "ERROR: '--target' requires a non-empty option argument." >&2
-            exit 1
-        fi
-        ;;
-    --target=?*)
-        target=${1#*=}
-        ;;
-    --target=)
-        printf 'ERROR: "--target" requires a non-empty option argument.\n' >&2
-        exit 1
-        ;;
-    -l | --linker)
-        if [ -n "${2:-}" ]; then
-            linker="${2:-}"
+            ;;
+        --target=?*) target=${1#*=} ;;
+        --target=) die "'--target' requires a non-empty option argument" ;;
+        -l | --linker)
+            [ -z "${2:-}" ] && die "'--linker' requires a non-empty option argument"
+            linker=$2
             shift
-        else
-            printf "ERROR: '--linker' requires a non-empty option argument." >&2
-            exit 1
-        fi
-        ;;
-    --linker=?*)
-        linker=${1#*=}
-        ;;
-    --linker=)
-        printf 'ERROR: "--linker" requires a non-empty option argument.\n' >&2
-        exit 1
-        ;;
-    -o | --out)
-        if [ -n "${2:-}" ]; then
-            out="${2:-}"
+            ;;
+        --linker=?*) linker=${1#*=} ;;
+        --linker=) die "'--linker' requires a non-empty option argument" ;;
+        -o | --out)
+            [ -z "${2:-}" ] && die "'--out' requires a non-empty option argument"
+            out=$2
             shift
-        else
-            printf "ERROR: '--out' requires a non-empty option argument." >&2
-            exit 1
-        fi
-        ;;
-    --out=?*)
-        out=${1#*=}
-        ;;
-    --out=)
-        printf 'ERROR: "--out" requires a non-empty option argument.\n' >&2
-        exit 1
-        ;;
-    --)
+            ;;
+        --out=?*) out=${1#*=} ;;
+        --out=) die "'--out' requires a non-empty option argument" ;;
+        --)
+            shift
+            break
+            ;;
+        -?*) die "Unknown option $1" ;;
+        *) break ;;
+        esac
         shift
-        break
-        ;;
-    -?*)
-        printf "ERROR: Unknown option %s\n" "$1" >&2
-        ;;
-    *)
-        break
-        ;;
-    esac
-    shift
-done
+    done
 
-if [ -n "$linker" ] && [ "$target" = "hbvm_ableos" ]; then
-    printf "ERROR: Linker cannot be set with target 'hbvm_ableos'"
-    exit 1
-fi
-if [ $run = 1 ] && [ "$target" = "hbvm_ableos" ]; then
-    printf "ERROR: ./build does not support running the executable with target 'hbvm_ableos'"
-    exit 1
-fi
+    if [ -n "$linker" ] && [ "$target" = "hbvm_ableos" ]; then
+        die "Linker cannot be set with target 'hbvm_ableos'"
+    fi
+    if [ "$run" = 1 ] && [ "$target" = "hbvm_ableos" ]; then
+        die "./build does not support running the executable with target 'hbvm_ableos'"
+    fi
+}
 
-check_hbc
-
-if [ "$target" = "c_native" ]; then
+build_c_native() {
     if [ -z "$linker" ]; then
-        set -- "zig cc" "clang" "gcc"
-        for linker; do
-            cmd=$(echo "$linker" | awk '{print $1}')
-            if command -v "$cmd" >/dev/null 2>&1; then break; fi
+        for cmd in "zig cc" clang gcc; do
+            if command -v "${cmd%% *}" >/dev/null 2>&1; then
+                linker=$cmd
+                break
+            fi
         done
-
-        if [ -z "$linker" ]; then
-            echo "Could not find any of the following:" "$@" ". please install any, or add to PATH." >&2
-            exit 1
-        fi
+        [ -z "$linker" ] && die "Could not find zig, clang, or gcc. Please install any, or add to PATH."
     fi
 
-    make_build_dir
-    check_out_dir
-    set_target
+    if check_changes || [ ! -e "$out" ]; then
+        hbc "$SCRIPT_DIR/src/main.hb" --backend-flags=opt_level=speed >"$BUILD_PATH/out.o" ||
+            {
+                rm -f "$BUILD_PATH/out.o"
+                rm -f "$CHECKSUM_FILE"
+                die "Compilation failed"
+            }
 
-    if hbc "$build_dir/src/main.hb" --backend-flags=opt_level=speed >"$build_dir/target/build/lily.o"; then
-        $linker "$build_dir/target/build/lily.o" -o "$out"
-        strip -s "$out"
-    else
-        echo "compilation failed :(" >&2
-        exit 1
+        $linker "$BUILD_PATH/out.o" -o "$out"
+        strip -s "$out" || die "Stripping failed"
     fi
-    if [ $run = 1 ] && [ ! "$target" = "hbvm_ableos" ]; then
-        "$build_dir"/target/lily
+
+    if [ "$run" = 1 ]; then exec "$out"; fi
+}
+
+build_hbvm() {
+    [ "$out" = "$DEFAULT_OUT" ] && out="$SCRIPT_DIR/target/lily.hbf"
+    if check_changes || [ ! -e "$out" ]; then
+        hbc "$SCRIPT_DIR/src/main.hb" --target=unknown-virt-unknown --backend-flags=opt_level=speed >"$out" ||
+            {
+                rm -f "$CHECKSUM_FILE"
+                die "Compilation failed"
+            }
     fi
-elif [ "$target" = "hbvm_ableos" ]; then
-    make_build_dir
-    check_out_dir
-    set_target
-    if [ "$out" = "$build_dir/target/lily" ]; then out="$build_dir/target/lily.hbf"; fi
-    if ! hbc "$build_dir/src/main.hb" --target=unknown-virt-unknown >"$out"; then
-        echo "compilation failed :(" >&2
-        exit 1
-    fi
-fi
+}
+
+main() {
+    parse_args "$@"
+
+    mkdir -p "$BUILD_PATH" || die "Failed to create build directory"
+    [ -w "$BUILD_PATH" ] || die "$BUILD_PATH is not writable"
+    [ -w "$(dirname "$out")" ] || die "Out directory does not exist or is not writeable"
+
+    echo "target := @use(\"./$target.hb\")" >"$TARGET_FILE"
+    check_hbc
+
+    case $target in
+    c_native) build_c_native ;;
+    hbvm_ableos) build_hbvm ;;
+    *) die "Invalid target: $target" ;;
+    esac
+
+}
+
+main "$@"

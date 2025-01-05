@@ -1,4 +1,4 @@
-.{collections: .{Vec}, target, target_c_native, target_hbvm_ableos, null_pointer} := @use("lib.hb")
+.{collections: .{SparseVec}, target, target_c_native, target_hbvm_ableos, Type} := @use("lib.hb")
 
 Allocation := struct {
 	ptr: ^void,
@@ -7,12 +7,12 @@ Allocation := struct {
 
 // ! THIS ALLOCATOR IS TEMPORARY
 SimpleAllocator := struct {
-	allocations: Vec(Allocation, RawAllocator),
+	allocations: SparseVec(Allocation, RawAllocator),
 	raw: RawAllocator,
 
 	$new := fn(): Self {
 		raw := RawAllocator.new()
-		return .(Vec(Allocation, RawAllocator).new(&raw), raw)
+		return .(SparseVec(Allocation, RawAllocator).new(&raw), raw)
 	}
 	deinit := fn(self: ^Self): void {
 		loop if self.allocations.len == 0 break else {
@@ -66,16 +66,18 @@ RawAllocator := struct {
 	old_ptr: ^void,
 	size: uint,
 	old_size: uint,
-	$new := fn(): Self return .(null_pointer(void), null_pointer(void), 0, 0)
+	$new := fn(): Self return .(Type(^void).uninit(), Type(^void).uninit(), 0, 0)
 	deinit := fn(self: ^Self): void {
 		if target == target_c_native {
-			target.free(self.ptr)
-			target.free(self.old_ptr)
+			// ! (compiler) bug: comparing `self.ptr != Type(^void).uninit()` rather than `self.size == 0`
+			//		causes condition to never be true (even though it is)
+			if self.size != 0 target.free(self.ptr)
+			if self.old_size != 0 target.free(self.old_ptr)
 		} else if target == target_hbvm_ableos {
-			target.free(self.ptr, self.size)
-			target.free(self.old_ptr, self.old_size)
+			if self.size != 0 target.free(self.ptr, self.size)
+			if self.old_size != 0 target.free(self.old_ptr, self.old_size)
 		};
-		*self = Self.new()
+		// *self = Self.new()
 	}
 	alloc := fn(self: ^Self, $T: type, count: uint): ?^T {
 		ptr := target.malloc(count * @sizeof(T))

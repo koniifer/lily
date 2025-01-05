@@ -1,8 +1,6 @@
-.{log: .{LogLevel}, null_pointer} := @use("../lib.hb")
+.{log: .{LogLevel}} := @use("../lib.hb")
 
 $PAGE_SIZE := 4096
-$MAX_ALLOC := 0xFF
-$MAX_FREE := 0xFF
 
 LogMsg := packed struct {level: LogLevel, string: ^u8, strlen: uint}
 
@@ -20,16 +18,12 @@ $free_pages := fn(ptr: ^void, count: uint): void {
 	return @eca(3, 2, &FreePageMsg.(1, count, ptr), @sizeof(FreePageMsg))
 }
 
-malloc := fn(size: uint): ?^void {
-	if size == 0 return null
-	pages := calculate_pages(size)
-	return request_pages(pages)
+$malloc := fn(size: uint): ?^void {
+	return request_pages(calculate_pages(size))
 }
 
-free := fn(ptr: ^void, size: uint): void {
-	if size == 0 | ptr == null_pointer(void) return;
-	pages := calculate_pages(size)
-	free_pages(ptr, pages)
+$free := fn(ptr: ^void, size: uint): void {
+	free_pages(ptr, calculate_pages(size))
 }
 
 CopyMsg := packed struct {a: u8, count: uint, src: ^void, dest: ^void}
@@ -46,6 +40,8 @@ memmove := fn(dest: ^void, src: ^void, size: uint): void {
 	memcpy(dest, src, size)
 	memset(src, 0, size)
 }
+
+$getrandom := fn(dest: ^void, size: uint): void return @eca(3, 4, dest, size)
 
 $exit := fn(code: int): void {
 }

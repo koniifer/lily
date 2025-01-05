@@ -1,18 +1,19 @@
-.{target, log, target_c_native, target_hbvm_ableos, result: .{Result}, null_pointer} := @use("../lib.hb");
-.{Error} := @use("lib.hb")
+.{target, target_c_native, target_hbvm_ableos, memmove, Type} := @use("../lib.hb");
 
-Vec := fn($T: type, $A: type): type return struct {
-	// self.slice.len tracks non-null elements
+SparseVec := fn($T: type, $A: type): type return struct {
+	// slice.len tracks null and non-null elements
 	slice: []?T,
 	allocator: ^A,
+	// len tracks non-null elements
 	len: uint,
+	// capacity tracks maximum slice.len before reallocating
 	capacity: uint,
 
-	$new := fn(allocator: ^A): Self return .{slice: null_pointer(?T)[0..0], allocator, capacity: 0, len: 0}
+	$new := fn(allocator: ^A): Self return .{slice: Type([]?T).uninit(), allocator, capacity: 0, len: 0}
 	deinit := fn(self: ^Self): void {
 		// currently does not handle deinit of T if T allocates memory
 		if self.capacity != 0 self.allocator.free(?T, self.slice.ptr)
-		self.slice = null_pointer(?T)[0..0]
+		self.slice = Type([]?T).uninit()
 		self.capacity = 0
 	}
 	push := fn(self: ^Self, value: T): void {
@@ -26,8 +27,11 @@ Vec := fn($T: type, $A: type): type return struct {
 			// ! (c_native) (compiler) bug: null check broken, so unwrapping (unsafe!)
 			new_alloc := @unwrap(self.allocator.alloc(?T, self.capacity))
 
+			if self.len > 0 {
+				memmove(new_alloc, self.slice.ptr, self.slice.len * @sizeof(?T))
+			}
+
 			if self.slice.len > 0 {
-				target.memmove(@bitcast(new_alloc), @bitcast(self.slice.ptr), self.slice.len * @sizeof(?T))
 				self.allocator.free(?T, self.slice.ptr)
 			}
 			self.slice.ptr = new_alloc
@@ -55,6 +59,7 @@ Vec := fn($T: type, $A: type): type return struct {
 			a := self.slice[n]
 			if a != null {
 				self.slice[n] = null
+				self.slice.len -= 1
 				self.len -= 1
 				return a
 			}
@@ -69,12 +74,12 @@ Vec := fn($T: type, $A: type): type return struct {
 			a := self.slice[m]
 			if a != null {
 				// ! (compiler) bug: This print causes compiler panic
-				printf("%d\n\0".ptr, a)
+				if !@target("*-virt-unknown") printf("%d\n\0".ptr, a)
 				if j == n {
 					self.slice[m] = null
 					self.len -= 1
-					// ! (compiler) bug: This print happens but we never see the "zub zub {a}" in main.hb?????
-					printf("here: %d\n\0".ptr, a)
+					// ! (compiler) bug: This print happens but we never see the "zub zub" in main.hb
+					if !@target("*-virt-unknown") printf("here: %d\n\0".ptr, a)
 					return a
 				}
 				j += 1
