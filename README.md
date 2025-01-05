@@ -5,6 +5,7 @@ use `./build -h` to see available arguments. supports:
 - custom linker (for `c_native`)
 - running the executable (for `c_native`)
 - setting output path
+- dumping assembly of `c_native` or `hbvm_ableos` programs
 - only recompiling if either source or environment change
 
 > [!IMPORTANT]
@@ -12,7 +13,7 @@ use `./build -h` to see available arguments. supports:
 
 ### To change build target
 manually:
-> create the file `src/lib/target/target.hb` with the contents `target := @use("c_native.hb")` (example)
+> create the file `src/lib/target/target.hb` with the contents `target := @use("my_target.hb")`
 
 automatically:
 > use the `-t` flag supplied in `./build`
@@ -20,8 +21,6 @@ automatically:
 currently available targets:
 - `c_native`
 - `hbvm_ableos`
-
-alternatively, use `./build -t c_native` (example)
 
 ### Currently "working" features
 - `lily.{Type, TypeOf, Kind, exit, panic, memcpy, memmove, memset}`

@@ -10,9 +10,11 @@ readonly BUILD_PATH="$SCRIPT_DIR/target/build"
 readonly CHECKSUM_FILE="$BUILD_PATH/checksum"
 readonly TARGET_FILE="$SRC_DIR/lib/target/target.hb"
 
+hbc_flags="--backend-flags=opt_level=speed"
 linker=""
 target="c_native"
 run=0
+dump_asm=0
 out="$DEFAULT_OUT"
 
 die() {
@@ -55,28 +57,45 @@ parse_args() {
         case ${1:-""} in
         -h | --help)
             cat <<EOF
-Build Script
 Usage: $0 [options]
     -r, --run               Run the compiled output (Available only on target=c_native)
+    -d, --dump-asm          Dump the assembly to stdout (Available on all targets)
     -l, --linker <linker>   Specify linker (Available only on target=c_native)
-    -t, --target <target>   Specify target (One of: c_native, hbvm_ableos)
+    -t, --target <target>   Specify target (Run without <target> to see options)
     -o, --out <path>        Set output path
     -h, --help              Show this help message
 Examples:
     $0 -t hbvm_ableos
     $0 -r -l 'zig cc' -t c_native
     $0 -r
+    $0 -d -t hbvm_ableos > out.hbf
 EOF
             exit
             ;;
         -r | --run) run=1 ;;
+        -d | --dump-asm) dump_asm=1 ;;
         -t | --target)
-            [ -z "${2:-}" ] && die "'--target' requires a non-empty option argument"
+            [ -z "${2:-}" ] &&
+                {
+                    cat <<EOF
+Usage: $0 --target <target>
+    hbvm_ableos             Build for AbleOS
+    c_native                Build for your machine
+EOF
+                    exit
+                }
             target=$2
             shift
             ;;
         --target=?*) target=${1#*=} ;;
-        --target=) die "'--target' requires a non-empty option argument" ;;
+        --target=)
+            cat <<EOF
+Usage: $0 --target <target>
+    hbvm_ableos             Build for AbleOS
+    c_native                Build for your machine
+EOF
+            exit
+            ;;
         -l | --linker)
             [ -z "${2:-}" ] && die "'--linker' requires a non-empty option argument"
             linker=$2
@@ -107,6 +126,9 @@ EOF
     if [ "$run" = 1 ] && [ "$target" = "hbvm_ableos" ]; then
         die "./build does not support running the executable with target 'hbvm_ableos'"
     fi
+    if [ "$run" = 1 ] && [ "$dump_asm" = 1 ]; then
+        die "Argument '--run' is incompatible with argument '--dump-asm'"
+    fi
 }
 
 build_c_native() {
@@ -121,7 +143,7 @@ build_c_native() {
     fi
 
     if check_changes || [ ! -e "$out" ]; then
-        hbc "$SCRIPT_DIR/src/main.hb" --backend-flags=opt_level=speed >"$BUILD_PATH/out.o" ||
+        hbc "$SCRIPT_DIR/src/main.hb" $hbc_flags >"$BUILD_PATH/out.o" ||
             {
                 rm -f "$BUILD_PATH/out.o"
                 rm -f "$CHECKSUM_FILE"
@@ -133,12 +155,18 @@ build_c_native() {
     fi
 
     if [ "$run" = 1 ]; then exec "$out"; fi
+    if [ "$dump_asm" = 1 ]; then objdump -d "$BUILD_PATH/out.o"; fi
 }
 
 build_hbvm() {
-    [ "$out" = "$DEFAULT_OUT" ] && out="$SCRIPT_DIR/target/lily.hbf"
-    if check_changes || [ ! -e "$out" ]; then
-        hbc "$SCRIPT_DIR/src/main.hb" --target=unknown-virt-unknown --backend-flags=opt_level=speed >"$out" ||
+    [ "$out" = "$DEFAULT_OUT" ] && out="$SCRIPT_DIR/target/lily.axe"
+    hbc_flags="$hbc_flags --target=unknown-virt-unknown"
+    if [ "$dump_asm" = 1 ]; then
+        hbc_flags="$hbc_flags --dump-asm"
+        out=/dev/stdout
+    fi
+    if check_changes || [ ! -w "$out" ]; then
+        hbc "$SCRIPT_DIR/src/main.hb" $hbc_flags >"$out" ||
             {
                 rm -f "$CHECKSUM_FILE"
                 die "Compilation failed"
