@@ -29,8 +29,8 @@ currently available targets:
 
 ### Currently "in progress" features
 - `lily.rand.SimpleRandom`
-- `lily.log.{print, printf}`
 
 ### Currently "broken due to compiler" features
+- `lily.log.{print, printf}`
 - `lily.collections.SparseVec`
 - `lily.alloc.{SimpleAllocator, RawAllocator}`

@@ -18,12 +18,14 @@ target_hbvm_ableos := @use("target/hbvm_ableos.hb")
 target_c_native := @use("target/c_native.hb")
 target := @use("target/target.hb").target
 
-$exit := fn(code: int): void {
-	_ = target.exit(code)
+$exit := fn(code: int): never {
+	target.exit(code)
 	die
 }
 
-$panic := fn(message: ?[]u8): void {
+// ! (compiler) bug: inlining here crashes the parser. nice.
+// ! (c_native) (compiler) bug: NOT inlining here makes it sometimes not work
+panic := fn(message: ?[]u8): never {
 	if message != null log.error(message) else log.error("The program called panic.")
 	exit(1)
 }
@@ -85,6 +87,9 @@ Type := fn($T: type): type return struct {
 	}
 	This := fn(): type {
 		return T
+	}
+	$name := fn(): []u8 {
+		return @nameof(T)
 	}
 	$is_bool := fn(): bool {
 		return T == bool
