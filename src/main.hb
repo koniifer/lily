@@ -1,12 +1,10 @@
 lily := @use("lib/lib.hb");
 
 Allocator := lily.alloc.SimpleAllocator
-Vec := lily.collections.SparseVec
+Vec := lily.collections.Vec
 Random := lily.rand.SimpleRandom
 Result := lily.result.Result
 
-// ! (runtime) bug: leaking memory (waiting on compiler bugfixes)
-// ! can't run on target_hbvm_ableos due to unresolved compiler bugs
 main := fn(argc: uint, argv: []^void): uint {
 	allocator := Allocator.new()
 	defer allocator.deinit()
@@ -31,19 +29,15 @@ main := fn(argc: uint, argv: []^void): uint {
 
 	lily.log.print(true)
 
-	// ! (c_native) (compiler) bug: compiler panic from vec.remove()
-	// z := vec.remove(1)
-	// lily.log.info("removed from vec")
-	// z = vec.remove(3)
-	// lily.log.info("removed from vec")
-	// if z != null {
-	// ! (compiler) bug: this never happens (even though it should)
-	// lily.log.info("zub zub")
-	// }
+	z := vec.remove(1)
+	if z != null {
+		lily.log.info("removed from vec")
+	}
 
-	lily.log.info("the following should panic:")
-	a := Result(bool, bool).err(false)
-	_ = a.unwrap()
+	// lily.log.info("the following should panic:")
+	// a := Result(bool, bool).err(false)
+	// // how to make allocator clean up on process exit?
+	// _ = a.unwrap()
 
 	return 0
 }

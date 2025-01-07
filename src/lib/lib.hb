@@ -15,8 +15,10 @@ log := @use("log.hb")
 fmt := @use("fmt.hb")
 
 target_hbvm_ableos := @use("target/hbvm_ableos.hb")
-target_c_native := @use("target/c_native.hb")
-target := @use("target/target.hb").target
+target_c_native := @use("target/c_native.hb");
+.{DEBUG, target} := @use("target/config.hb")
+
+// ! exit, memcpy, memmove, and memset are all temporary wrapper functions
 
 $exit := fn(code: int): never {
 	target.exit(code)
@@ -31,15 +33,18 @@ $panic := fn(message: ?[]u8): never {
 }
 
 $memcpy := fn(dest: @Any(), src: @Any(), size: uint): void {
-	return target.memcpy(@bitcast(dest), @bitcast(src), size)
+	if TypeOf(dest).kind() != .Pointer | TypeOf(src).kind() != .Pointer @error("memcpy requires a pointer")
+	target.memcpy(@bitcast(dest), @bitcast(src), size)
 }
 
 $memmove := fn(dest: @Any(), src: @Any(), size: uint): void {
-	return target.memmove(@bitcast(dest), @bitcast(src), size)
+	if TypeOf(dest).kind() != .Pointer | TypeOf(src).kind() != .Pointer @error("memmove requires a pointer")
+	target.memmove(@bitcast(dest), @bitcast(src), size)
 }
 
 $memset := fn(dest: @Any(), src: u8, size: uint): void {
-	return target.memset(@bitcast(dest), src, size)
+	if TypeOf(dest).kind() != .Pointer @error("memset requires a pointer")
+	target.memset(@bitcast(dest), src, size)
 }
 
 RawKind := enum {

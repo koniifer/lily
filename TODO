@@ -1,0 +1,4 @@
+- mersenne twister for rand
+- better allocator for alloc
+- add code comments everywhere
+- add docstrings everywhere

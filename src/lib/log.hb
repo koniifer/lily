@@ -44,11 +44,11 @@ print := fn(any: @Any()): void {
 printf := fn(str: []u8, any: @Any()): void {
 	len := fmt.format_with_str(str, print_buffer[0..@sizeof(@TypeOf(print_buffer)) - 1], any)
 	print_buffer[len] = 0
-	print(print_buffer[0..len])
+	@inline(print, print_buffer[0..len])
 }
 
-$error := fn(message: []u8): void return log(LogLevel.Error, message)
-$warn := fn(message: []u8): void return log(LogLevel.Warn, message)
-$info := fn(message: []u8): void return log(LogLevel.Info, message)
-$debug := fn(message: []u8): void return log(LogLevel.Debug, message)
-$trace := fn(message: []u8): void return log(LogLevel.Trace, message)
+$error := fn(message: []u8): void return log(.Error, message)
+$warn := fn(message: []u8): void return log(.Warn, message)
+$info := fn(message: []u8): void return log(.Info, message)
+$debug := fn(message: []u8): void return log(.Debug, message)
+$trace := fn(message: []u8): void return log(.Trace, message)

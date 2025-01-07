@@ -133,19 +133,19 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 	}
 
 	if T.kind() == .Slice {
-		loop {
-			len += @inline(format, buf[len..], v[i])
+		loop if i == v.len break else {
+			len += format(buf[len..], v[i])
 			i += 1
-			if i == v.len break else {
+			if i < v.len {
 				memcpy(buf.ptr + len, ", ".ptr, 2)
 				len += 2
 			}
 		}
 	} else {
-		$loop {
-			len += @inline(format, buf[len..], v[i])
+		$loop if i == T.len() break else {
+			len += format(buf[len..], v[i])
 			i += 1
-			if i == T.len() break else {
+			if i < T.len() {
 				memcpy(buf.ptr + len, ", ".ptr, 2)
 				len += 2
 			}

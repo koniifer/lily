@@ -1,4 +1,6 @@
 malloc := fn(size: uint): ?^void @import()
+calloc := fn(size: uint): ?^void @import()
+realloc := fn(ptr: ^void, size: uint): ?^void @import()
 free := fn(ptr: ^void): void @import()
 memmove := fn(dest: ^void, src: ^void, size: uint): void @import()
 memcpy := fn(dest: ^void, src: ^void, size: uint): void @import()

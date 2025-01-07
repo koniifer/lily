@@ -8,12 +8,13 @@ readonly SRC_DIR="$SCRIPT_DIR/src"
 readonly DEFAULT_OUT="$SCRIPT_DIR/target/lily"
 readonly BUILD_PATH="$SCRIPT_DIR/target/build"
 readonly CHECKSUM_FILE="$BUILD_PATH/checksum"
-readonly TARGET_FILE="$SRC_DIR/lib/target/target.hb"
+readonly CONFIG_FILE="$SRC_DIR/lib/target/config.hb"
 
 hbc_flags="--backend-flags=opt_level=speed"
 linker=""
 target="c_native"
 run=0
+debug="false"
 dump_asm=0
 out="$DEFAULT_OUT"
 
@@ -45,9 +46,9 @@ check_hbc() {
 
 check_changes() {
     [ -r "$CHECKSUM_FILE" ] && previous_checksum=$(cat "$CHECKSUM_FILE")
-    current_checksum=$(printf "%s%s%s%s" \
+    current_checksum=$(printf "%s%s%s%s%s" \
         "$(find "$SRC_DIR" -type f -exec md5sum {} + | sort | md5sum)" \
-        "$linker" "$out" "$target" | md5sum)
+        "$linker" "$out" "$target" "$debug" | md5sum)
     echo "$current_checksum" >"$CHECKSUM_FILE"
     [ "${previous_checksum:-}" != "$current_checksum" ]
 }
@@ -59,7 +60,8 @@ parse_args() {
             cat <<EOF
 Usage: $0 [options]
     -r, --run               Run the compiled output (Available only on target=c_native)
-    -d, --dump-asm          Dump the assembly to stdout (Available on all targets)
+    -d, --debug             Enable debug mode in compilation
+    -a, --dump-asm          Dump the assembly to stdout (Available on all targets)
     -l, --linker <linker>   Specify linker (Available only on target=c_native)
     -t, --target <target>   Specify target (Run without <target> to see options)
     -o, --out <path>        Set output path
@@ -67,13 +69,14 @@ Usage: $0 [options]
 Examples:
     $0 -t hbvm_ableos
     $0 -r -l 'zig cc' -t c_native
-    $0 -r
-    $0 -d -t hbvm_ableos > out.hbf
+    $0 -r --debug
+    $0 -a -t hbvm_ableos > out.hbf
 EOF
             exit
             ;;
         -r | --run) run=1 ;;
-        -d | --dump-asm) dump_asm=1 ;;
+        -a | --dump-asm) dump_asm=1 ;;
+        -d | --debug) debug="true" ;;
         -t | --target)
             [ -z "${2:-}" ] &&
                 {
@@ -181,7 +184,7 @@ main() {
     [ -w "$BUILD_PATH" ] || die "$BUILD_PATH is not writable"
     [ -w "$(dirname "$out")" ] || die "Out directory does not exist or is not writeable"
 
-    echo "target := @use(\"./$target.hb\")" >"$TARGET_FILE"
+    printf "target := @use(\"./%s.hb\")\n\$DEBUG := %s" "$target" "$debug" >"$CONFIG_FILE"
     check_hbc
 
     case $target in

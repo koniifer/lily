@@ -1,1 +1,1 @@
-.{SparseVec} := @use("vec.hb")
+.{Vec} := @use("vec.hb")
