@@ -1,4 +1,4 @@
-.{LogLevel} := @use("../lib.hb").std.log
+.{LogLevel} := @use("../lib.hb").log
 
 $PAGE_SIZE := 4096
 

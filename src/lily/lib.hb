@@ -61,7 +61,7 @@ fmt := @use("fmt.hb");
 .{Type, TypeOf} := @use("type.hb")
 
 // ! (compiler) bug: inlining here crashes the parser. nice.
-// ! (c_native) (compiler) bug: NOT inlining here makes it sometimes not work
+// ! (libc) (compiler) bug: NOT inlining here makes it sometimes not work
 $panic := fn(message: ?[]u8): never {
 	if message != null log.error(message) else log.error("The program called panic.")
 	exit(1)

@@ -24,7 +24,7 @@ Vec := fn($T: type, $A: type): type return struct {
 				self.slice.ptr = new_alloc
 			} else {
 				self.cap *= 2
-				// ! (c_native) (compiler) bug: null check broken, so unwrapping (unsafe!)
+				// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
 				new_alloc := @unwrap(self.allocator.realloc(T, self.slice.ptr, self.cap))
 				self.slice.ptr = new_alloc
 			}

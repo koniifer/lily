@@ -2,7 +2,7 @@
 
 $FP_TOLERANCE := 0.00000001
 
-// ! (c_native) (compiler) bug: caused by: `lily.log.print(100)`
+// ! (libc) (compiler) bug: caused by: `lily.log.print(100)`
 fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	is_negative := TypeOf(v).is_signed_int() & v < 0
 	prefix_len := 0
