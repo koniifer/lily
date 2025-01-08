@@ -1,4 +1,4 @@
-.{target, target_c_native, target_hbvm_ableos, memmove, Type} := @use("../lib.hb");
+.{memmove, Type, log, alloc} := @use("../lib.hb");
 
 Vec := fn($T: type, $A: type): type return struct {
 	slice: []T,
@@ -10,6 +10,11 @@ Vec := fn($T: type, $A: type): type return struct {
 		if self.cap > 0 self.allocator.free(T, self.slice.ptr)
 		self.slice = Type([]T).uninit()
 		self.cap = 0
+		if A == alloc.RawAllocator {
+			log.debug("deinit: vec (w/ raw allocator)")
+		} else {
+			log.debug("deinit: vec (w/ allocator)")
+		}
 	}
 	push := fn(self: ^Self, value: T): void {
 		if self.slice.len == self.cap {

@@ -1,36 +1,49 @@
 # Lily
-an attempt at a cross-platform standard library for hblang.<br>
-use `./build -h` to see available arguments. supports:
-- changing target
-- custom linker (for `c_native`)
-- running the executable (for `c_native`)
-- setting output path
-- dumping assembly of `c_native` or `hbvm_ableos` programs
-- only recompiling if either source or environment change
+an attempt at a cross-platform standard library for hblang.
 
 > [!IMPORTANT]
-> all features, targets, etc, are provisional and subject to change
+> all features, targets, modules, etc, are provisional and may be subject to change or deletion
+
+use `./build -h` to see available arguments.
+### supports:
+- changing target
+- custom linker (for native targets)
+- running the executable (for native targets)
+- setting output path
+- dumping assembly representation
+- only recompiling if either source or environment change
 
 ### To change build target
-manually:
-> create the file `src/lib/target/target.hb` with the contents `target := @use("my_target.hb")`
+use the `-t` flag supplied in `./build`
 
-automatically:
-> use the `-t` flag supplied in `./build`
+use a target triple (i.e. `x86_64-unknown-linux-gnu`), or pick from one of these aliases:
+>- hbvm
+>- ableos
+>- libc (links to system libc)
 
-currently available targets:
-- `c_native`
-- `hbvm_ableos`
+>[!NOTE]
+`hbvm == ableos` (for now)
 
-### Currently "working" features
+### Modifying build config
+compiler flags are in: `./build` (at top of file)
+> used for NON-CODE configuration
+
+compile-time configuration is in: `./src/lily/lib.hb`
+> used for things like toggling debug assertions, setting minimum log level, etc
+## Features
+
+### Working
 - `lily.{Type, TypeOf, Kind, exit, panic, memcpy, memmove, memset}`
 - `lily.log.{log, info, error, warn, debug, trace}`
 - `lily.result.Result`
+- `lily.alloc.{SimpleAllocator, RawAllocator}`
+- `lily.collections.Vec`
 
-### Currently "in progress" features
+### In progress
 - `lily.rand.SimpleRandom`
 
-### Currently "broken due to compiler" features
-- `lily.log.{print, printf}`
-- `lily.collections.SparseVec`
-- `lily.alloc.{SimpleAllocator, RawAllocator}`
+### Partially broken due to compiler
+- `lily.log.print`
+
+### Completely broken due to compiler
+- `lily.log.printf`

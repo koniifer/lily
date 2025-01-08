@@ -1,4 +1,4 @@
-.{target, TypeOf, Type} := @use("lib.hb")
+.{Target, TypeOf, Type} := @use("lib.hb")
 
 // ! NON CRYPTOGRAPHIC, TEMPORARY
 SimpleRandom := struct {
@@ -17,11 +17,11 @@ SimpleRandom := struct {
 		}
 		if T.is_bool() {
 			a: A = idk
-			target.getrandom(@bitcast(&a), 1)
+			Target.getrandom(@bitcast(&a), 1)
 			return @bitcast(a & @as(u8, 1))
 		}
 		a: A = idk
-		target.getrandom(@bitcast(&a), T.size())
+		Target.getrandom(@bitcast(&a), T.size())
 		return a
 	}
 	/// Accepts any type for min and max (as long as it is the same for both).
@@ -32,8 +32,8 @@ SimpleRandom := struct {
 	$fill := fn(self: ^Self, buf: @Any()): void {
 		T := TypeOf(buf)
 		match T.kind() {
-			.Slice => target.getrandom(@bitcast(buf.ptr), buf.len * T.Child().size()),
-			.Array => target.getrandom(@bitcast(&buf), T.size()),
+			.Slice => Target.getrandom(@bitcast(buf.ptr), buf.len * T.Child().size()),
+			.Array => Target.getrandom(@bitcast(&buf), T.size()),
 			_ => @error("Can only fill bytes of Slice or Array."),
 		}
 	}

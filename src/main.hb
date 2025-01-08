@@ -1,4 +1,4 @@
-lily := @use("lib/lib.hb");
+lily := @use("lily/lib.hb")
 
 Allocator := lily.alloc.SimpleAllocator
 Vec := lily.collections.Vec
@@ -18,13 +18,13 @@ main := fn(argc: uint, argv: []^void): uint {
 	//		the program to halt after the loop
 	// ! (compiler) bug: checking against `vec.len` rather than `i` causes the loop to go forever
 	//		despite the fact that vec.len is incremented in vec.push
-	loop if i == 5 break else {
+	loop if i == 10 break else {
 		defer i += 1
 		vec.push(rand.any(uint))
 		lily.log.info("pushed to vec")
 	}
 
-	// ! (c_native) this causes a compiler bug in lily.fmt.fmt_int
+	// ! (libc) this causes a compiler bug in lily.fmt.fmt_int
 	// lily.log.print(100)
 
 	lily.log.print(true)
