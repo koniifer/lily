@@ -38,12 +38,17 @@ compile-time configuration is in: `./src/lily/lib.hb`
 - `lily.result.Result`
 - `lily.alloc.{SimpleAllocator, RawAllocator}`
 - `lily.collections.Vec`
+- `lily.fmt.fmt_bool`
+- `lily.string.{reverse, equals, clear, split_once, split, chars, count, left_trim, right_trim, trim}`
+- `lily.Target.{realloc, malloc, calloc, free, getrandom}`
 
 ### In progress
 - `lily.rand.SimpleRandom`
 
 ### Partially broken due to compiler
 - `lily.log.print`
+- `lily.fmt.format`
 
 ### Completely broken due to compiler
 - `lily.log.printf`
+- `lily.fmt.{format_with_str, fmt_container, fmt_optional, fmt_enum, fmt_int, fmt_float}`
