@@ -1,0 +1,1 @@
+.{FoldHasher} := @use("foldhash.hb")

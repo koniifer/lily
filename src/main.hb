@@ -2,42 +2,38 @@ lily := @use("lily/lib.hb")
 
 Allocator := lily.alloc.SimpleAllocator
 Vec := lily.collections.Vec
+HashMap := lily.collections.HashMap
 Random := lily.rand.SimpleRandom
 Result := lily.result.Result
+Hasher := lily.hash.FoldHasher
+
+// ! HashMap only works on AbleOS target (due to compiler bugs)
 
 main := fn(argc: uint, argv: []^void): uint {
 	allocator := Allocator.new()
 	defer allocator.deinit()
-	vec := Vec(uint, Allocator).new(&allocator)
-	defer vec.deinit()
-	rand := Random.new()
-	defer rand.deinit()
+	map := HashMap(uint, uint, Hasher, Allocator).new(&allocator)
+	defer map.deinit()
 
-	i := 0
-	// ! (compiler) bug: using `if i < 5 {}` rather than `if i >= 5 break else {}` causes
-	//		the program to halt after the loop
-	// ! (compiler) bug: checking against `vec.len` rather than `i` causes the loop to go forever
-	//		despite the fact that vec.len is incremented in vec.push
-	loop if i == 10 break else {
-		defer i += 1
-		vec.push(rand.any(uint))
-		lily.log.info("pushed to vec")
+	_ = map.insert(10, 20)
+	ptr := map.insert(10, 30)
+
+	good := 0
+
+	if ptr == @unwrap(map.get_ref(10)) {
+		lily.log.info("good")
+		good = *ptr
+		lily.print(good)
+	} else {
+		lily.log.error("bad")
 	}
 
-	// ! (libc) this causes a compiler bug in lily.fmt.fmt_int
-	// lily.log.print(100)
-
-	lily.log.print(true)
-
-	z := vec.remove(1)
-	if z != null {
-		lily.log.info("removed from vec")
+	other := map.remove(10)
+	if @unwrap(other) == good {
+		lily.log.info("good 2")
+	} else {
+		lily.log.error("bad 2")
 	}
-
-	// lily.log.info("the following should panic:")
-	// a := Result(bool, bool).err(false)
-	// // how to make allocator clean up on process exit?
-	// _ = a.unwrap()
 
 	return 0
 }

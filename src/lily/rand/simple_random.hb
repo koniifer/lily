@@ -1,4 +1,4 @@
-.{Target, TypeOf, Type} := @use("lib.hb")
+.{Target, TypeOf, Type} := @use("../lib.hb")
 
 // ! NON CRYPTOGRAPHIC, TEMPORARY
 SimpleRandom := struct {

@@ -71,10 +71,10 @@ Type := fn($T: type): type return struct {
 	$size := fn(): uint {
 		return @sizeof(T)
 	}
-	$bits := fn(): uint {
+	$bits := fn(): Self.USize() {
 		return @sizeof(T) << 3
 	}
-	$bitmask := fn(): Self.Usize() {
+	$bitmask := fn(): Self.USize() {
 		return -1
 	}
 	$raw_kind := fn(): RawKind {

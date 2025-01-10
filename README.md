@@ -17,12 +17,13 @@ use `./build -h` to see available arguments.
 use the `-t` flag supplied in `./build`
 
 use a target triple (i.e. `x86_64-unknown-linux-gnu`), or pick from one of these aliases:
+>[!NOTE]
+`hbvm == ableos` (for now)
+
 >- hbvm
 >- ableos
 >- libc (links to system libc)
 
->[!NOTE]
-`hbvm == ableos` (for now)
 
 ### Modifying build config
 compiler flags are in: `./build` (at top of file)
@@ -30,25 +31,19 @@ compiler flags are in: `./build` (at top of file)
 
 compile-time configuration is in: `./src/lily/lib.hb`
 > used for things like toggling debug assertions, setting minimum log level, etc
-## Features
 
-### Working
-- `lily.{Type, TypeOf, Kind, exit, panic, memcpy, memmove, memset}`
-- `lily.log.{log, info, error, warn, debug, trace}`
-- `lily.result.Result`
-- `lily.alloc.{SimpleAllocator, RawAllocator}`
-- `lily.collections.Vec`
-- `lily.fmt.fmt_bool`
-- `lily.string.{reverse, equals, clear, split_once, split, chars, count, left_trim, right_trim, trim}`
-- `lily.Target.{realloc, malloc, calloc, free, getrandom}`
+# Features
 
-### In progress
-- `lily.rand.SimpleRandom`
-
-### Partially broken due to compiler
-- `lily.log.print`
-- `lily.fmt.format`
-
-### Completely broken due to compiler
-- `lily.log.printf`
-- `lily.fmt.{format_with_str, fmt_container, fmt_optional, fmt_enum, fmt_int, fmt_float}`
+features include:
+- heap allocator
+- system rand
+- memory operations
+- math operations
+- string operations, including split iteration
+- hasher
+- hashmap
+- vec (dynamic array)
+- printing &  logging
+- result type
+- typesystem wrapper
+- string formatting & interpolation

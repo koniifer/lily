@@ -6,19 +6,15 @@ Version := struct {
 
 $VERSION := Version(0, 0, 4)
 
-target_ableos := @use("targets/ableos.hb")
-target_libc := @use("targets/libc.hb")
-
 Config := struct {
 	$DEBUG := false
 	$DEBUG_ASSERTIONS := false
-
 	$MIN_LOGLEVEL := log.LogLevel.Info
 
 	$debug := fn(): bool return Config.DEBUG
 	$debug_assertions := fn(): bool return Config.DEBUG | Config.DEBUG_ASSERTIONS
 	$min_loglevel := fn(): log.LogLevel {
-		if Config.debug() return .Debug
+		if Config.debug() & Config.MIN_LOGLEVEL < .Debug return .Debug
 		return Config.MIN_LOGLEVEL
 	}
 }
@@ -26,6 +22,9 @@ Config := struct {
 Target := enum {
 	LibC,
 	AbleOS,
+
+	ableos := @use("targets/ableos.hb")
+	libc := @use("targets/libc.hb")
 
 	$current := fn(): Self {
 		// This captures all HBVM targets, but for now only AbleOS is supported
@@ -35,16 +34,17 @@ Target := enum {
 		// Assume that unknown targets have libc
 		return .LibC
 	}
-	$Lib := fn(): type {
-		match Self.current() {
-			.LibC => return target_libc,
-			.AbleOS => return target_ableos,
+	$Lib := fn(self: Self): type {
+		match self {
+			.LibC => return Self.libc,
+			.AbleOS => return Self.ableos,
 		}
 	}
 	/* ! memmove, memcpy, memset, exit, currently suffixed with `_w` to distinguish them from the wrapper functions */;
-	.{malloc, calloc, realloc, free, memmove: memmove_w, memcpy: memcpy_w, memset: memset_w, exit: exit_w, getrandom} := Target.Lib();
-	.{printf_str} := Target.Lib();
-	.{PAGE_SIZE, LogMsg} := Target.Lib()
+	/* todo: reorganise these */;
+	.{malloc, calloc, realloc, free, memmove: memmove_w, memcpy: memcpy_w, memset: memset_w, exit: exit_w, getrandom} := Self.Lib(Self.current());
+	.{printf_str} := Self.Lib(.LibC);
+	.{PAGE_SIZE, LogMsg} := Self.Lib(.AbleOS)
 }
 
 // ----------------------------------------------------
@@ -52,8 +52,10 @@ Target := enum {
 collections := @use("collections/lib.hb")
 result := @use("result.hb")
 string := @use("string.hb")
-alloc := @use("alloc.hb")
-rand := @use("rand.hb")
+alloc := @use("alloc/lib.hb")
+hash := @use("hash/lib.hb")
+rand := @use("rand/lib.hb")
+math := @use("math.hb")
 log := @use("log.hb")
 fmt := @use("fmt.hb");
 

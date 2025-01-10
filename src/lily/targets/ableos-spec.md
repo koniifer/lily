@@ -1,16 +1,16 @@
-# Documenting the used features of the AbleOS spec
+# documenting the used features of the AbleOS spec
 
 > [!Important]
-> this does not apply to all hbvm targets. it applies to AbleOS specifically. other hbvm targets will have different ecalls, or even no ecalls. for an example of another project using hbvm, see [depell](https://depell.mlokis.tech/) (dependency hell), a website created by mlokis, the main programmer of hblang, that runs hblang programs, in hbvm, in wasm.
+> this does not apply to all hbvm targets. it applies to ableos specifically. other hbvm targets will have different ecalls, or even no ecalls. for an example of another project using hbvm, see [depell](https://depell.mlokis.tech/) (dependency hell), a website created by mlokis, the main programmer of hblang, that runs hblang programs, in hbvm, in wasm.
 
-## How do ecalls work?
+## how do ecalls work?
 ecalls are comprised of a series of values, with each consecutive one representing the value of a vm register from 1-255 (the 0 register is reserved). `ecall a b c` fills the first three registers with the values `a`, `b`, and `c` respectively. the ecall handler reads these values and performs a kernel operation based on them.
 
-## How is this formatted?
+## how is this formatted?
 all registers are followed by parethesis with their purpose. the `message` section is actually a pointer to a single location in memory, taking a single register. the following register is always the size of this message. this is omitted for brevity.<br>
 `ecall register(purpose), ..., register(purpose), message_bytes:type, ..., message_bytes:type`
 
-## More info?
+## more info?
 read [here](https://git.ablecorp.us/AbleOS/ableos/src/branch/master/kernel/src/holeybytes/ecah.rs) for the full set of ecalls and buffer ids.
 
 ### `lily.log`:

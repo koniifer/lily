@@ -4,9 +4,9 @@ $FP_TOLERANCE := 0.00000001
 
 // ! (libc) (compiler) bug: caused by: `lily.log.print(100)`
 fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
-	is_negative := TypeOf(v).is_signed_int() & v < 0
 	prefix_len := 0
-	if is_negative {
+	// ! (compiler) bug: excuse me wtf? why are `v > 0` and `v < 0` flipped?
+	if TypeOf(v).is_signed_int() & v > 0 {
 		v = -v
 		buf[0] = '-'
 		prefix_len += 1
@@ -32,11 +32,18 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	loop if v <= 0 break else {
 		remainder := v % radix
 		v /= radix
+		// ! (libc) workaround for compiler bug
+		// if remainder > 9 {
+		// 	buf[i] = @intcast(remainder - 10 + 'A')
+		// } else {
+		// 	buf[i] = @intcast(remainder + '0')
+		// }
 		if remainder > 9 {
-			buf[i] = @intcast(remainder - 10 + 'A')
+			remainder += 'A' - 10
 		} else {
-			buf[i] = @intcast(remainder + '0')
+			remainder += '0'
 		}
+		buf[i] = @intcast(remainder)
 		i += 1
 	}
 
@@ -44,12 +51,11 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	return i
 }
 
+// ! (libc) (compiler) keeps complaining about 'not yet implemented' only on libc
 fmt_float := fn(buf: []u8, v: @Any(), precision: uint, radix: int): uint {
-	is_negative := v < 0
-
 	prefix_len := 0
 
-	if is_negative {
+	if v < 0 {
 		v = -v
 		buf[0] = '-'
 		prefix_len += 1

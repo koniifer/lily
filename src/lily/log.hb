@@ -8,7 +8,7 @@ LogLevel := enum {
 	Trace,
 }
 
-log := fn(level: LogLevel, str: []u8): void {
+$log := fn(level: LogLevel, str: []u8): void {
 	if level > Config.min_loglevel() return;
 	match Target.current() {
 		.LibC => match level {

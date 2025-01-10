@@ -1,19 +1,19 @@
 .{memmove, Type, log, alloc} := @use("../lib.hb");
 
-Vec := fn($T: type, $A: type): type return struct {
+Vec := fn($T: type, $Allocator: type): type return struct {
 	slice: []T,
-	allocator: ^A,
+	allocator: ^Allocator,
 	cap: uint,
-	$new := fn(allocator: ^A): Self return .{slice: Type([]T).uninit(), allocator, cap: 0}
+	$new := fn(allocator: ^Allocator): Self return .{slice: Type([]T).uninit(), allocator, cap: 0}
 	deinit := fn(self: ^Self): void {
 		// currently does not handle deinit of T if T allocates memory
 		if self.cap > 0 self.allocator.free(T, self.slice.ptr)
 		self.slice = Type([]T).uninit()
 		self.cap = 0
-		if A == alloc.RawAllocator {
+		if Allocator == alloc.RawAllocator {
 			log.debug("deinit: vec (w/ raw allocator)")
 		} else {
-			log.debug("deinit: vec (w/ allocator)")
+			log.debug("deinit: vec")
 		}
 	}
 	push := fn(self: ^Self, value: T): void {
@@ -35,6 +35,10 @@ Vec := fn($T: type, $A: type): type return struct {
 	get := fn(self: ^Self, n: uint): ?T {
 		if n >= self.slice.len return null
 		return self.slice[n]
+	}
+	get_ref := fn(self: ^Self, n: uint): ?^T {
+		if n >= self.slice.len return null
+		return self.slice.ptr + n
 	}
 	pop := fn(self: ^Self): ?T {
 		if self.slice.len == 0 return null

@@ -1,0 +1,1 @@
+.{SimpleRandom} := @use("simple_random.hb")
