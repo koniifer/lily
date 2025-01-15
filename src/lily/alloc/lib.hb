@@ -1,2 +1,3 @@
-.{RawAllocator} := @use("raw_allocator.hb");
-.{SimpleAllocator} := @use("simple_allocator.hb")
+.{RawAllocator} := @use("raw.hb");
+.{PageAllocator} := @use("page.hb");
+.{SimpleAllocator} := @use("simple.hb")

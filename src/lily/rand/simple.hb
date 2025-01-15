@@ -4,6 +4,7 @@
 SimpleRandom := struct {
 	seed: uint,
 	$new := fn(): Self return Self.(0)
+	$default := fn(): Self return Self.(0)
 	$deinit := fn(self: ^Self): void {
 		self.seed = 0
 	}

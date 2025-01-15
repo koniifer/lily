@@ -1,4 +1,4 @@
-.{memmove, Type, log, alloc} := @use("../lib.hb");
+.{memmove, Type, log, alloc, quicksort, compare, iter} := @use("../lib.hb");
 
 Vec := fn($T: type, $Allocator: type): type return struct {
 	slice: []T,
@@ -7,7 +7,7 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 	$new := fn(allocator: ^Allocator): Self return .{slice: Type([]T).uninit(), allocator, cap: 0}
 	deinit := fn(self: ^Self): void {
 		// currently does not handle deinit of T if T allocates memory
-		if self.cap > 0 self.allocator.free(T, self.slice.ptr)
+		if self.cap > 0 self.allocator.dealloc(T, self.slice.ptr)
 		self.slice = Type([]T).uninit()
 		self.cap = 0
 		if Allocator == alloc.RawAllocator {
@@ -52,6 +52,19 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 		memmove(self.slice.ptr + n, self.slice.ptr + n + 1, (self.slice.len - n - 1) * @sizeof(T))
 		self.slice.len -= 1
 		return temp
+	}
+	find := fn(self: ^Self, rhs: T): ?uint {
+		i := 0
+		loop if self.get(i) == rhs return i else if i == self.slice.len return null else i += 1
+	}
+	$into_iter := fn(self: Self): iter.Iterator(iter.SliceIter(T)) {
+		return .(.(self.slice, 0))
+	}
+	$sort := fn(self: ^Self): void {
+		_ = quicksort(compare, self.slice, 0, self.slice.len - 1)
+	}
+	$sort_with := fn(self: ^Self, $func: type): void {
+		_ = quicksort(func, self.slice, 0, self.slice.len - 1)
 	}
 	$len := fn(self: ^Self): uint return self.slice.len
 	$capacity := fn(self: ^Self): uint return self.capacity

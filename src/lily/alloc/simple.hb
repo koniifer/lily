@@ -2,7 +2,7 @@
 .{RawAllocator} := @use("lib.hb")
 
 Allocation := struct {
-	ptr: ^void,
+	ptr: ^u8,
 	len: uint,
 }
 
@@ -20,8 +20,8 @@ SimpleAllocator := struct {
 			alloced := self.allocations.pop()
 			if alloced == null continue
 			match Target.current() {
-				.LibC => Target.free(alloced.ptr),
-				.AbleOS => Target.free(alloced.ptr, alloced.len),
+				.LibC => Target.dealloc(alloced.ptr),
+				.AbleOS => Target.dealloc(alloced.ptr, alloced.len),
 			}
 		}
 
@@ -30,7 +30,7 @@ SimpleAllocator := struct {
 		log.debug("deinit: allocator")
 	}
 	alloc := fn(self: ^Self, $T: type, count: uint): ?^T {
-		ptr := Target.malloc(count * @sizeof(T))
+		ptr := Target.alloc(count * @sizeof(T))
 		if Target.current() == .AbleOS {
 			if ptr != null self.allocations.push(.(ptr, count * @sizeof(T)))
 		}
@@ -39,7 +39,7 @@ SimpleAllocator := struct {
 		return @bitcast(ptr)
 	}
 	alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?^T {
-		ptr := Target.calloc(count * @sizeof(T))
+		ptr := Target.alloc_zeroed(count * @sizeof(T))
 		if Target.current() == .AbleOS {
 			if ptr != null self.allocations.push(.(ptr, count * @sizeof(T)))
 		}
@@ -48,9 +48,6 @@ SimpleAllocator := struct {
 	realloc := fn(self: ^Self, $T: type, ptr: ^T, count: uint): ?^T {
 		match Target.current() {
 			.AbleOS => {
-				// temporary optimisation, ableos only gives whole pages.
-				// this prevents reallocating 1 page over and over
-				if count * @sizeof(T) < Target.PAGE_SIZE return ptr
 				alloced := self._find_and_remove(@bitcast(ptr))
 				if alloced == null return null
 				new_ptr := Target.realloc(@bitcast(ptr), alloced.len, count * @sizeof(T))
@@ -68,19 +65,19 @@ SimpleAllocator := struct {
 			},
 		}
 	}
-	free := fn(self: ^Self, $T: type, ptr: ^T): void {
+	dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {
 		match Target.current() {
 			.AbleOS => {
 				alloced := self._find_and_remove(@bitcast(ptr))
-				if alloced != null Target.free(@bitcast(ptr), alloced.len)
+				if alloced != null Target.dealloc(@bitcast(ptr), alloced.len)
 			},
 			.LibC => {
-				Target.free(@bitcast(ptr))
+				Target.dealloc(@bitcast(ptr))
 			},
 		}
 		log.debug("freed")
 	}
-	_find_and_remove := fn(self: ^Self, ptr: ^void): ?Allocation {
+	_find_and_remove := fn(self: ^Self, ptr: ^u8): ?Allocation {
 		i := 0
 		loop if i == self.allocations.len() break else {
 			defer i += 1

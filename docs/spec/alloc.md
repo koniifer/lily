@@ -1,6 +1,6 @@
 # allocators
 > [!tip]
-well designed allocators should ensure they only free or reallocate allocations they made.
+well designed allocators should ensure they only deallocate or reallocate allocations they made.
 
 1. all spec compliant allocators should implement:
 > unless otherwise stated, functions can be optionally inline.<br>
@@ -12,7 +12,7 @@ Allocator := struct {
     /// prepare to be deallocated.
     deinit := fn(self: ^Self): void
     /// should return null on failure.
-    /// should free any temporary allocations on failure.
+    /// should dealloc any intermediate allocations on failure.
     alloc := fn(self: ^Self, $T: type, count: uint): ?^T
     /// same behaviour as alloc, except:
     /// must be zeroed.
@@ -20,8 +20,8 @@ Allocator := struct {
     /// same behaviour as alloc, except:
     /// must move data to new allocation,
     /// must ensure the old allocation is freed at some point.
-    realloc := fn(self: ^Self, $T: type, ptr: ^T, count: uint): ?^T
-    /// must free or schedule the freeing of the given allocation
-    free := fn(self: ^Self, $T: type, ptr: ^T): void
+    realloc := fn(self: ^Self, $T: type, ptr: ^T, new_count: uint): ?^T
+    /// must dealloc or schedule the freeing of the given allocation
+    dealloc := fn(self: ^Self, $T: type, ptr: ^T): void
 }
 ```

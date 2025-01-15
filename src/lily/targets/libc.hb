@@ -1,10 +1,19 @@
-malloc := fn(size: uint): ?^void @import()
-calloc := fn(size: uint): ?^void @import()
-realloc := fn(ptr: ^void, size: uint): ?^void @import()
-free := fn(ptr: ^void): void @import()
-memmove := fn(dest: ^void, src: ^void, size: uint): void @import()
-memcpy := fn(dest: ^void, src: ^void, size: uint): void @import()
-memset := fn(dest: ^void, src: u8, size: uint): void @import()
+alloc := fn(size: uint): ?^u8 @import("malloc")
+alloc_zeroed := fn(size: uint): ?^u8 @import("calloc")
+realloc := fn(ptr: ^u8, size: uint): ?^u8 @import()
+dealloc := fn(ptr: ^u8): void @import("free")
+memmove := fn(dest: ^u8, src: ^u8, size: uint): void @import()
+memcpy := fn(dest: ^u8, src: ^u8, size: uint): void @import()
+memset := fn(dest: ^u8, src: u8, size: uint): void @import()
 exit := fn(code: int): void @import()
 printf_str := fn(str0: ^u8, strlen: uint, str1: ^u8): void @import("printf")
-getrandom := fn(dest: ^void, size: uint): void @import()
+getrandom := fn(dest: ^u8, size: uint): void @import()
+
+// temp
+$page_size := fn(): uint {
+	return 4096
+}
+// also temp
+$calculate_pages := fn(size: uint): uint {
+	return (size + page_size() - 1) / page_size()
+}

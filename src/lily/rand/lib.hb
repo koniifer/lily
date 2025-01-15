@@ -1,1 +1,1 @@
-.{SimpleRandom} := @use("simple_random.hb")
+.{SimpleRandom} := @use("simple.hb")

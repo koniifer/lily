@@ -18,17 +18,17 @@ log: `ecall 3(buf), 1(log), loglevel:u8, string:*const u8, strlen:u64`<br>
 > formats and then copies `strlen` of `string` into the serial output
 
 ### `lily.Target.AbleOS`:
-malloc: `ecall 3(buf), 2(mem), 0(alloc), page_count:u64, zeroed:bool=false`
+alloc: `ecall 3(buf), 2(mem), 0(alloc), page_count:u64, zeroed:bool=false`
 > returns `Option<*mut u8>` to an available contiguous chunk of memory, sized in `4096` byte (align `8`) pages. it is undefined behaviour to use size zero.
 
-calloc: `ecall 3(buf), 2(mem), 0(alloc), page_count:u64, zeroed:bool=true`<br>
-> same as malloc, except filled with zeroes.
+alloc_zeroed: `ecall 3(buf), 2(mem), 0(alloc), page_count:u64, zeroed:bool=true`<br>
+> same as alloc, except filled with zeroes.
 
 realloc: `ecall 3(buf), 2(mem), 7(realloc), page_count:u64, page_count_new:u64, ptr:*const u8, ptr_new:*const u8`<br>
-> resizes an existing contiguous chunk of memory allocated via `malloc`, `calloc`, or `realloc`. contents remain the same. it is undefined behaviour to use size zero or a `null` pointer. returns a new `Option<*mut u8>` after resizing.
+> resizes an existing contiguous chunk of memory allocated via `alloc`, `alloc_zeroed`, or `realloc`. contents remain the same. it is undefined behaviour to use size zero or a `null` pointer. returns a new `Option<*mut u8>` after resizing.
 
-free: `ecall 3(buf), 2(mem), 1(free), page_count:u64, ptr:*const u8`<br>
-> releases an existing contiguous chunk of memory allocated via `malloc`, `calloc`, or `realloc`. it is undefined behaviour to use size zero or a `null` pointer.
+dealloc: `ecall 3(buf), 2(mem), 1(dealloc), page_count:u64, ptr:*const u8`<br>
+> releases an existing contiguous chunk of memory allocated via `alloc`, `alloc_zeroed`, or `realloc`. it is undefined behaviour to use size zero or a `null` pointer.
 
 memcpy: `ecall 3(buf), 2(mem), 4(memcopy), size:u64, src:*const u8, dest:*const u8`<br>
 > copies `size` of `src` into `dest`. `src` and `dest` must not be overlapping. it is undefined behaviour to use size zero or a `null` pointer.

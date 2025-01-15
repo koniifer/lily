@@ -91,7 +91,7 @@ Type := fn($T: type): type return struct {
 	$uninit := fn(): T {
 		match Self.kind() {
 			.Pointer => return @bitcast(0),
-			.Slice => return @bitcast(@as(^void, @bitcast(0))[0..0]),
+			.Slice => return Type(^Self.Child().This()).uninit()[0..0],
 			.Array => return idk,
 			.Builtin => return idk,
 			.Struct => return idk,

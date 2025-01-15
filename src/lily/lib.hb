@@ -4,10 +4,10 @@ Version := struct {
 	patch: uint,
 }
 
-$VERSION := Version(0, 0, 4)
+$VERSION := Version(0, 0, 5)
 
 Config := struct {
-	$DEBUG := false
+	$DEBUG := true
 	$DEBUG_ASSERTIONS := false
 	$MIN_LOGLEVEL := log.LogLevel.Info
 
@@ -19,34 +19,6 @@ Config := struct {
 	}
 }
 
-Target := enum {
-	LibC,
-	AbleOS,
-
-	ableos := @use("targets/ableos.hb")
-	libc := @use("targets/libc.hb")
-
-	$current := fn(): Self {
-		// This captures all HBVM targets, but for now only AbleOS is supported
-		if @target("*-virt-unknown") {
-			return .AbleOS
-		}
-		// Assume that unknown targets have libc
-		return .LibC
-	}
-	$Lib := fn(self: Self): type {
-		match self {
-			.LibC => return Self.libc,
-			.AbleOS => return Self.ableos,
-		}
-	}
-	/* ! memmove, memcpy, memset, exit, currently suffixed with `_w` to distinguish them from the wrapper functions */;
-	/* todo: reorganise these */;
-	.{malloc, calloc, realloc, free, memmove: memmove_w, memcpy: memcpy_w, memset: memset_w, exit: exit_w, getrandom} := Self.Lib(Self.current());
-	.{printf_str} := Self.Lib(.LibC);
-	.{PAGE_SIZE, LogMsg} := Self.Lib(.AbleOS)
-}
-
 // ----------------------------------------------------
 
 collections := @use("collections/lib.hb")
@@ -56,9 +28,11 @@ alloc := @use("alloc/lib.hb")
 hash := @use("hash/lib.hb")
 rand := @use("rand/lib.hb")
 math := @use("math.hb")
+iter := @use("iter.hb")
 log := @use("log.hb")
 fmt := @use("fmt.hb");
 
+.{Target} := @use("targets/lib.hb");
 .{print, printf} := log;
 .{Type, TypeOf} := @use("type.hb")
 
@@ -88,4 +62,37 @@ $memmove := fn(dest: @Any(), src: @Any(), size: uint): void {
 $memset := fn(dest: @Any(), src: u8, size: uint): void {
 	if TypeOf(dest).kind() != .Pointer @error("memset requires a pointer")
 	Target.memset_w(@bitcast(dest), src, size)
+}
+
+_qs_partition := fn($func: type, array: @Any(), start: uint, end: uint): uint {
+	pivot := array[end]
+	i := start
+	j := start
+	loop if j >= end break else {
+		defer j += 1
+		if func(array[j], pivot) {
+			temp := array[i]
+			array[i] = array[j]
+			array[j] = temp
+			i += 1
+		}
+	}
+	temp := array[i]
+	array[i] = array[end]
+	array[end] = temp
+	return i
+}
+
+/// Can sort in place if `&array` is passed rather than `array`
+/// For sorting slices in place, do not pass `&slice`, pass `slice` instead.
+quicksort := fn($func: type, array: @Any(), start: uint, end: uint): @TypeOf(array) {
+	if start >= end return array;
+	pivot_index := _qs_partition(func, array, start, end)
+	if pivot_index > 0 array = quicksort(func, array, start, pivot_index - 1)
+	array = quicksort(func, array, pivot_index + 1, end)
+	return array
+}
+
+$compare := fn(lhs: @Any(), rhs: @Any()): bool {
+	return lhs < rhs
 }
