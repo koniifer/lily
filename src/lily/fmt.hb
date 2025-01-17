@@ -199,7 +199,15 @@ format := fn(buf: []u8, v: @Any()): uint {
 		},
 		.Struct => return fmt_container(buf, v),
 		.Tuple => return fmt_container(buf, v),
-		.Slice => return fmt_container(buf, v),
+		.Slice => {
+			if T.This() == []u8 {
+				*buf.ptr = '"'
+				memcpy(buf.ptr + 1, v.ptr, v.len);
+				*(buf.ptr + 1 + v.len) = '"'
+				return v.len + 2
+			}
+			return fmt_container(buf, v)
+		},
 		.Array => return fmt_container(buf, v),
 		.Optional => return fmt_optional(buf, v),
 		.Enum => return fmt_enum(buf, v),
@@ -208,12 +216,15 @@ format := fn(buf: []u8, v: @Any()): uint {
 	return 0
 }
 
+// ! (compiler) bug: panic doesnt work here specifically. causes parser issue.
 format_with_str := fn(str: []u8, buf: []u8, v: @Any()): uint {
 	T := TypeOf(v)
 	n := string.count(str, '{')
-	if n != string.count(str, '}') panic("Missing closing '}' in format string.")
+	// if n != string.count(str, '}') panic("Missing closing '}' in format string.")
+	if n != string.count(str, '}') die
 	if T.kind() == .Tuple {
-		if T.len() != n panic("Format string has different number of '{}' than args given.")
+		// if T.len() != n panic("Format string has different number of '{}' than args given.")
+		if T.len() != n die
 		m := 0
 		i := 0
 		j := 0
@@ -243,7 +254,8 @@ format_with_str := fn(str: []u8, buf: []u8, v: @Any()): uint {
 		}
 		return j
 	} else if n > 1 {
-		panic("Format string has multiple '{}' but value provided is not a tuple.")
+		// panic("Format string has multiple '{}' but value provided is not a tuple.")
+		die
 	} else {
 		i := 0
 		j := 0

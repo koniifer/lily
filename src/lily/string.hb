@@ -1,3 +1,5 @@
+.{iter: .{Iterator, IterNext}, Type} := @use("lib.hb")
+
 reverse := fn(str: []u8): void {
 	if str.len == 0 return;
 	j := str.len - 1
@@ -66,41 +68,52 @@ split_once := fn(haystack: []u8, needle: @Any()): ?struct {left: []u8, right: []
 	}
 }
 
-split := fn(iter: []u8, needle: @Any()): struct {
+split := fn(str: []u8, needle: @Any()): Iterator(struct {
 	str: []u8,
 	needle: @TypeOf(needle),
-	done: bool,
+	finished: bool = false,
 
-	next := fn(self: ^Self): ?[]u8 {
-		if self.done return null;
-
+	next := fn(self: ^Self): IterNext([]u8) {
 		splits := split_once(self.str, self.needle)
+		if self.finished return .(true, Type([]u8).uninit())
 		if splits != null {
 			self.str = splits.right
-			return splits.left
+			return .(false, splits.left)
 		} else {
-			self.done = true
-			return self.str
+			self.finished = true
+			return .(false, self.str)
 		}
 	}
-} {
+}) {
 	T := @TypeOf(needle)
 	if T != []u8 & T != u8 {
 		@error("Type of needle must be []u8 or u8.")
 	}
-	return .(iter, needle, false)
+	return .(.{str, needle})
 }
 
-chars := fn(iter: []u8): struct {
+chars := fn(iter: []u8): Iterator(struct {
 	str: []u8,
 
-	next := fn(self: ^Self): ?u8 {
-		if self.str.len == 0 return null
+	$next := fn(self: ^Self): IterNext(u8) {
+		tmp := IterNext(u8).(self.str.len == 0, self.str[0])
 		self.str = self.str[1..]
-		return self.str[0]
+		return tmp
 	}
-} {
-	return .(iter)
+}) {
+	return .(.(iter))
+}
+
+chars_ref := fn(iter: []u8): Iterator(struct {
+	str: []u8,
+
+	$next := fn(self: ^Self): IterNext(^u8) {
+		tmp := IterNext(^u8).(self.str.len == 0, self.str.ptr)
+		self.str = self.str[1..]
+		return tmp
+	}
+}) {
+	return .(.(iter))
 }
 
 count := fn(haystack: []u8, needle: @Any()): uint {

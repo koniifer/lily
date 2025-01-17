@@ -7,41 +7,52 @@ Random := lily.rand.SimpleRandom
 Result := lily.result.Result
 Hasher := lily.hash.FoldHasher
 
-// ! HashMap only works on AbleOS target (due to compiler bugs)
-
-$some_sorter := fn(lhs: @Any(), rhs: @Any()): bool {
-	return lhs < rhs
+$ref_char_to_str := fn(char: ^u8): []u8 {
+	return char[0..1]
 }
 
-$add_one := fn(x: ?uint): ?uint {
-	return @unwrap(x) + 1
-}
-
-$print := fn(next: @Any()): void {
-	lily.print(@as(@ChildOf(@TypeOf(next)), @unwrap(next)))
-}
-
-main := fn(): uint {
-	allocator := Allocator.new()
-	defer allocator.deinit()
-	vec := Vec(uint, Allocator).new(&allocator)
-	defer vec.deinit()
-	rand := Random.default()
-	defer rand.deinit()
-
-	i := 0
-	loop if i == 100 break else {
-		defer i += 1
-		vec.push(rand.any(u8))
+Generator := struct {
+	n: uint = 0,
+	$next := fn(self: ^Self): lily.iter.IterNext(uint) {
+		self.n += 1
+		return .(false, self.n)
 	}
-	// note: this does not affect the values of the vec itself
-	// the `add_one` here simply changes the value before printing.
-	// ! (libc) (compiler) bug: prints same numbers several times on libc. does not occur on ableos.
-	vec.into_iter().map(add_one).for_each(print)
+	$into_iter := fn(self: Self): lily.iter.Iterator(Self) {
+		return .(self)
+	}
+}
 
-	// equivalent to vec.sort() when some_sorter == `lhs < rhs`
-	// uses lily.quicksort under the hood
-	vec.sort_with(some_sorter)
+$add := fn(lhs: uint, rhs: uint): uint {
+	return lhs + rhs
+}
+
+chars_ref := lily.string.chars_ref
+
+main := fn(argc: uint, argv: []^void): uint {
+	a := Generator.{}.into_iter().take(50).fold(add, 0)
+	lily.print(a)
+
+	b := chars_ref("Hello,_").chain(chars_ref("World!")).map(ref_char_to_str).for_each(lily.log.info)
+	c := chars_ref("Hello,_").intersperse(chars_ref("World!")).map(ref_char_to_str).for_each(lily.log.info)
+
+	// allocator := Allocator.new()
+	// defer allocator.deinit()
+	// // ! HashMap only works on AbleOS target (due to compiler bugs)
+	// map := HashMap(uint, uint, Hasher, Allocator).new(&allocator)
+	// defer map.deinit()
+
+	// _ = map.insert(101, 20)
+	// _ = map.insert(202, 30)
+	// _ = map.insert(303, 40)
+
+	// // ! This iterator only works on AbleOS target (due to compiler bugs)
+	// map.items().enumerate().for_each(print)
 
 	return 0
 }
+
+// $print := fn(thing: @Any()): void {
+// 	.{n, val: item} := thing
+// 	// ! printf ALSO only works on AbleOS target (due to compiler bugs)
+// 	lily.printf("nth: {}, key: {}, value: {}", .(n, item.key, item.value))
+// }

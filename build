@@ -152,7 +152,7 @@ build() {
     fi
     if [ ! "$target" = "unknown-virt-unknown" ]; then
         if [ "$run" = 1 ]; then exec "$BUILD_PATH/$target/lily"; fi
-        if [ "$dump_asm" = 1 ]; then objdump -d "$BUILD_PATH/$target/lily.o"; fi
+        if [ "$dump_asm" = 1 ]; then objdump -d -M intel --no-show-raw-insn "$BUILD_PATH/$target/lily.o" | grep -E "^\s+[0-9a-f]+:" | sed -E 's/^\s+[0-9a-f]+:\s+//'; fi
     fi
 }
 

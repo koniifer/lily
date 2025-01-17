@@ -1,4 +1,4 @@
-.{collections: .{Vec}} := @use("../lib.hb")
+.{collections: .{Vec}, iter: .{Iterator, IterNext}, Type, log, math} := @use("../lib.hb")
 
 Item := fn($Key: type, $Value: type): type return packed struct {
 	key: Key,
@@ -31,34 +31,35 @@ HashMap := fn($Key: type, $Value: type, $Hasher: type, $Allocator: type): type r
 	}
 	insert := fn(self: ^Self, key: Key, value: Value): ^Value {
 		self.hasher.write(key)
-		idx := self.hasher.finish() % self.buckets.len()
+		idx := self.hasher.finish() % math.max(1, self.buckets.len())
 		self.hasher.reset()
 
-		bucket := self.buckets.get_ref(idx)
-		if bucket == null {
+		bucket_opt := self.buckets.get_ref(idx)
+		if bucket_opt == null {
 			self.buckets.push(Bucket(Key, Value, Allocator).new(self.allocator))
-			bucket = @unwrap(self.buckets.get_ref(self.buckets.len() - 1))
+			bucket_opt = self.buckets.get_ref(self.buckets.len() - 1)
 		}
 
+		bucket := @unwrap(bucket_opt)
+
 		i := 0
-		loop if i == self.buckets.len() break else {
+		loop if i == bucket.len() break else {
 			defer i += 1
-			pair := @unwrap(bucket).get_ref(i)
+			pair := bucket.get_ref(i)
 			if pair == null break
 			if pair.key == key {
 				pair.value = value
+				return &@as(^Item(Key, Value), pair).value
 			}
-			return &@as(^Item(Key, Value), pair).value
 		}
-
-		@unwrap(bucket).push(.{key, value})
-		pair := @unwrap(@unwrap(bucket).get_ref(@unwrap(bucket).len() - 1))
+		bucket.push(.{key, value})
+		pair := @unwrap(bucket.get_ref(bucket.len() - 1))
 		self.length += 1
 		return &@as(^Item(Key, Value), pair).value
 	}
 	get := fn(self: ^Self, key: Key): ?Value {
 		self.hasher.write(key)
-		idx := self.hasher.finish() % self.buckets.len()
+		idx := self.hasher.finish() % math.max(1, self.buckets.len())
 		self.hasher.reset()
 
 		bucket := self.buckets.get_ref(idx)
@@ -76,7 +77,7 @@ HashMap := fn($Key: type, $Value: type, $Hasher: type, $Allocator: type): type r
 	}
 	get_ref := fn(self: ^Self, key: Key): ?^Value {
 		self.hasher.write(key)
-		idx := self.hasher.finish() % self.buckets.len()
+		idx := self.hasher.finish() % math.max(1, self.buckets.len())
 		self.hasher.reset()
 
 		bucket := self.buckets.get_ref(idx)
@@ -94,7 +95,7 @@ HashMap := fn($Key: type, $Value: type, $Hasher: type, $Allocator: type): type r
 	}
 	remove := fn(self: ^Self, key: Key): ?Value {
 		self.hasher.write(key)
-		idx := self.hasher.finish() % self.buckets.len()
+		idx := self.hasher.finish() % math.max(1, self.buckets.len())
 		self.hasher.reset()
 
 		bucket := self.buckets.get_ref(idx)
@@ -111,5 +112,72 @@ HashMap := fn($Key: type, $Value: type, $Hasher: type, $Allocator: type): type r
 		}
 		return null
 	}
-	$len := fn(self: ^Self): uint return self.len
+	// todo: write keys, values
+	$items := fn(self: Self): Iterator(Items(Self, Item(Key, Value))) {
+		return .(.(self, 0, 0))
+	}
+	$keys := fn(self: Self): Iterator(Keys(Self, Key)) {
+		return .(.(self, 0, 0))
+	}
+	$values := fn(self: Self): Iterator(Values(Self, Value)) {
+		return .(.(self, 0, 0))
+	}
+	$len := fn(self: ^Self): uint return self.length
+}
+
+Items := fn($H: type, $I: type): type return struct {
+	// has to be owned here... (possibly due to bug) great...
+	map: H,
+	bucket: uint,
+	sub: uint,
+	next := fn(self: ^Self): IterNext(I) {
+		bucket := self.map.buckets.get_ref(self.bucket)
+		if bucket == null return .(true, Type(I).uninit())
+		sub := bucket.get(self.sub)
+		if sub == null {
+			self.sub = 0
+			self.bucket += 1
+			return self.next()
+		}
+		self.sub += 1
+		return .(false, sub)
+	}
+}
+
+Values := fn($H: type, $V: type): type return struct {
+	// has to be owned here... (possibly due to bug) great...
+	map: H,
+	bucket: uint,
+	sub: uint,
+	next := fn(self: ^Self): IterNext(V) {
+		bucket := self.map.buckets.get_ref(self.bucket)
+		if bucket == null return .(true, Type(V).uninit())
+		sub := bucket.get(self.sub)
+		if sub == null {
+			self.sub = 0
+			self.bucket += 1
+			return self.next()
+		}
+		self.sub += 1
+		return .(false, sub.value)
+	}
+}
+
+Keys := fn($H: type, $K: type): type return struct {
+	// has to be owned here... (possibly due to bug) great...
+	map: H,
+	bucket: uint,
+	sub: uint,
+	next := fn(self: ^Self): IterNext(K) {
+		bucket := self.map.buckets.get_ref(self.bucket)
+		if bucket == null return .(true, Type(K).uninit())
+		sub := bucket.get(self.sub)
+		if sub == null {
+			self.sub = 0
+			self.bucket += 1
+			return self.next()
+		}
+		self.sub += 1
+		return .(false, sub.key)
+	}
 }

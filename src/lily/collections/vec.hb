@@ -3,8 +3,13 @@
 Vec := fn($T: type, $Allocator: type): type return struct {
 	slice: []T,
 	allocator: ^Allocator,
-	cap: uint,
-	$new := fn(allocator: ^Allocator): Self return .{slice: Type([]T).uninit(), allocator, cap: 0}
+	cap: uint = 0,
+	$new := fn(allocator: ^Allocator): Self return .{slice: Type([]T).uninit(), allocator}
+	$new_with_capacity := fn(allocator: ^Allocator, cap: uint): Self {
+		// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
+		new_alloc := @unwrap(allocator.alloc(T, cap))
+		return .{slice: new_alloc[0..0], allocator, cap}
+	}
 	deinit := fn(self: ^Self): void {
 		// currently does not handle deinit of T if T allocates memory
 		if self.cap > 0 self.allocator.dealloc(T, self.slice.ptr)
@@ -16,10 +21,17 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 			log.debug("deinit: vec")
 		}
 	}
+	$reserve := fn(self: ^Self, n: uint): void {
+		// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
+		new_alloc := @unwrap(self.allocator.realloc(T, self.slice.ptr, self.cap + n))
+		self.cap += n
+		self.slice.ptr = new_alloc
+	}
 	push := fn(self: ^Self, value: T): void {
 		if self.slice.len == self.cap {
 			if self.cap == 0 {
 				self.cap = 1
+				// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
 				new_alloc := @unwrap(self.allocator.alloc(T, self.cap))
 				self.slice.ptr = new_alloc
 			} else {
