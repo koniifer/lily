@@ -46,9 +46,8 @@ Iterator := fn($T: type): type {
 		fold := fn(self: ^Self, $_fold: type, sum: Value): Value {
 			loop {
 				x := self.next()
-				y := self.next()
-				if y.finished return sum
-				sum += _fold(x.val, y.val)
+				if x.finished return sum
+				sum = _fold(sum, x.val)
 			}
 		}
 		nth := fn(self: ^Self, n: uint): ?Value {
@@ -57,6 +56,23 @@ Iterator := fn($T: type): type {
 				x := self.next()
 				if x.finished return null else if i == n return x.val
 				i += 1
+			}
+		}
+		collect := fn(self: ^Self, $A: type): ?A {
+			if Type(A).kind() != .Array {
+				@error("unsupported collect (for now)")
+			}
+			if @ChildOf(A) != Value {
+				@error("cannot collect of iterator of type", Value, "into type", A)
+			}
+			cont := Type(A).uninit()
+			i := 0
+			loop {
+				defer i += 1
+				x := self.next()
+				if i == @lenof(A) & x.finished return cont
+				if i == @lenof(A) | x.finished return null
+				cont[i] = x.val
 			}
 		}
 	}
@@ -114,7 +130,7 @@ Skip := fn($T: type): type {
 			n := 0
 			loop {
 				x := self.iter.next()
-				if n == self.step return x
+				if n == self.step | x.finished return x
 				n += 1
 			}
 		}

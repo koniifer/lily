@@ -5,8 +5,12 @@ Item := fn($Key: type, $Value: type): type return packed struct {
 	value: Value,
 }
 
-Bucket := fn($Key: type, $Value: type, $Allocator: type): type return Vec(Item(Key, Value), Allocator)
-Buckets := fn($Key: type, $Value: type, $Allocator: type): type return Vec(Bucket(Key, Value, Allocator), Allocator)
+Bucket := fn($Key: type, $Value: type, $Allocator: type): type {
+	return Vec(Item(Key, Value), Allocator)
+}
+Buckets := fn($Key: type, $Value: type, $Allocator: type): type {
+	return Vec(Bucket(Key, Value, Allocator), Allocator)
+}
 
 HashMap := fn($Key: type, $Value: type, $Hasher: type, $Allocator: type): type return struct {
 	allocator: ^Allocator,

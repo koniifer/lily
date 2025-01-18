@@ -68,21 +68,20 @@ split_once := fn(haystack: []u8, needle: @Any()): ?struct {left: []u8, right: []
 	}
 }
 
-split := fn(str: []u8, needle: @Any()): Iterator(struct {
+$split := fn(str: []u8, needle: @Any()): Iterator(struct {
 	str: []u8,
 	needle: @TypeOf(needle),
 	finished: bool = false,
 
 	next := fn(self: ^Self): IterNext([]u8) {
-		splits := split_once(self.str, self.needle)
 		if self.finished return .(true, Type([]u8).uninit())
+		splits := split_once(self.str, self.needle)
 		if splits != null {
 			self.str = splits.right
 			return .(false, splits.left)
-		} else {
-			self.finished = true
-			return .(false, self.str)
 		}
+		self.finished = true
+		return .(false, self.str)
 	}
 }) {
 	T := @TypeOf(needle)
@@ -92,11 +91,11 @@ split := fn(str: []u8, needle: @Any()): Iterator(struct {
 	return .(.{str, needle})
 }
 
-chars := fn(iter: []u8): Iterator(struct {
+$chars := fn(iter: []u8): Iterator(struct {
 	str: []u8,
 
 	$next := fn(self: ^Self): IterNext(u8) {
-		tmp := IterNext(u8).(self.str.len == 0, self.str[0])
+		tmp := IterNext(u8).(self.str.len == 0, *self.str.ptr)
 		self.str = self.str[1..]
 		return tmp
 	}
@@ -104,7 +103,7 @@ chars := fn(iter: []u8): Iterator(struct {
 	return .(.(iter))
 }
 
-chars_ref := fn(iter: []u8): Iterator(struct {
+$chars_ref := fn(iter: []u8): Iterator(struct {
 	str: []u8,
 
 	$next := fn(self: ^Self): IterNext(^u8) {

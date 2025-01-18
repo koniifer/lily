@@ -69,9 +69,6 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 		i := 0
 		loop if self.get(i) == rhs return i else if i == self.slice.len return null else i += 1
 	}
-	$into_iter := fn(self: Self): iter.Iterator(iter.SliceIter(T)) {
-		return .(.(self.slice, 0))
-	}
 	$sort := fn(self: ^Self): void {
 		_ = quicksort(compare, self.slice, 0, self.slice.len - 1)
 	}
