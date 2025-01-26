@@ -17,8 +17,7 @@ SimpleAllocator := struct {
 	}
 	deinit := fn(self: ^Self): void {
 		loop if self.allocations.len() == 0 break else {
-			alloced := self.allocations.pop()
-			if alloced == null continue
+			alloced := self.allocations.pop_unchecked()
 			match Target.current() {
 				.LibC => Target.dealloc(alloced.ptr),
 				.AbleOS => Target.dealloc(alloced.ptr, alloced.len),
@@ -81,10 +80,9 @@ SimpleAllocator := struct {
 		i := 0
 		loop if i == self.allocations.len() break else {
 			defer i += 1
-			alloced := self.allocations.get(i)
-			if alloced == null return null
+			alloced := self.allocations.get_unchecked(i)
 			if alloced.ptr == ptr {
-				_ = self.allocations.remove(i)
+				_ = self.allocations.swap_remove(i)
 				return alloced
 			}
 		}

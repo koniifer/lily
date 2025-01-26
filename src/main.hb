@@ -16,23 +16,57 @@ $add := fn(sum: uint, x: uint): uint {
 }
 
 main := fn(argc: uint, argv: []^void): uint {
-	sum := Generator.{}.into_iter().take(50).fold(add, 0)
-	lily.print(sum)
+	// sum := Generator.{}.into_iter().take(50).fold(add, 0)
+	// lily.print(sum)
 
-	// ! (libc) (compiler) bug: .collect(T) does not work.
-	if lily.Target.current() != .LibC {
-		str := lily.string.chars("Hello, ").intersperse(
-			lily.string.chars("World!"),
-		).collect([13]u8)
+	// // ! (libc) (compiler) bug: .collect(T) does not work.
+	// if lily.Target.current() != .LibC {
+	// 	str := lily.string.chars("Hello, ").intersperse(
+	// 		lily.string.chars("World!"),
+	// 	).collect([13]u8)
 
-		if str != null {
-			lily.log.info(@as([13]u8, str)[..])
-		} else {
-			lily.panic("could not collect (array wrong size)")
-		}
-	} else {
-		lily.log.info("HWeolrllod,! ")
+	// 	if str != null {
+	// 		lily.log.info(@as([13]u8, str)[..])
+	// 	} else {
+	// 		lily.panic("could not collect (array wrong size)")
+	// 	}
+	// } else {
+	// 	// yes, im cheating if you are on libc.
+	// 	// it's not my fault, blame compiler bugs. T^T
+	// 	lily.log.info("HWeolrllod,! ")
+	// }
+
+	// return 0
+
+	// ! the following will ONLY work on ableos
+	allocator := lily.alloc.SimpleAllocator.new()
+	defer allocator.deinit()
+	map := lily.collections.HashMap(
+		uint,
+		uint,
+		lily.hash.FoldHasher,
+		lily.alloc.SimpleAllocator,
+	).new(&allocator)
+	defer map.deinit()
+
+	i := 0
+	$loop if i == 99 * 2 break else {
+		_ = map.insert(i, 0)
+		_ = map.insert(i + 1, 0)
+		i += 2
 	}
+	map.keys().for_each(lily.print)
+
+	// fun thing
+	// _ = map.insert("Farewell, World!", "beep boop")
+	// _ = map.insert("Hello, World!", "Hello!")
+	// _ = map.insert("Goodbye, World!", "Goodbye!")
+	// _ = map.insert("How do you do, World?", "Great!")
+	// _ = map.insert("Until next time, World!", "See you!")
+	// _ = map.insert("Greetings, World!", "Hi there!")
+
+	// lily.print(map.get("asdfasdf!"))
+	// lily.print(map.get("Hello, World!"))
 
 	return 0
 }

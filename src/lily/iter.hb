@@ -43,7 +43,7 @@ Iterator := fn($T: type): type {
 				_ = _for_each(x.val)
 			}
 		}
-		fold := fn(self: ^Self, $_fold: type, sum: Value): Value {
+		fold := fn(self: ^Self, $_fold: type, sum: @Any()): @TypeOf(sum) {
 			loop {
 				x := self.next()
 				if x.finished return sum

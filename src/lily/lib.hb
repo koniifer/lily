@@ -4,7 +4,7 @@ Version := struct {
 	patch: uint,
 }
 
-$VERSION := Version(0, 0, 5)
+$VERSION := Version(0, 0, 6)
 
 Config := struct {
 	$DEBUG := true

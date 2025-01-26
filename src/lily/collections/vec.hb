@@ -21,7 +21,9 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 			log.debug("deinit: vec")
 		}
 	}
-	$reserve := fn(self: ^Self, n: uint): void {
+	// todo: maybe make this exponential instead
+	reserve := fn(self: ^Self, n: uint): void {
+		if self.len() + n <= self.cap return;
 		// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
 		new_alloc := @unwrap(self.allocator.realloc(T, self.slice.ptr, self.cap + n))
 		self.cap += n
@@ -48,26 +50,41 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 		if n >= self.slice.len return null
 		return self.slice[n]
 	}
+	$get_unchecked := fn(self: ^Self, n: uint): T return self.slice[n]
 	get_ref := fn(self: ^Self, n: uint): ?^T {
 		if n >= self.slice.len return null
 		return self.slice.ptr + n
 	}
+	$get_ref_unchecked := fn(self: ^Self, n: uint): ^T return self.slice.ptr + n
 	pop := fn(self: ^Self): ?T {
 		if self.slice.len == 0 return null
 		self.slice.len -= 1
+		// as far as im aware this is not undefined behaviour.
+		return self.slice[self.slice.len]
+	}
+	$pop_unchecked := fn(self: ^Self): T {
+		self.slice.len -= 1
+		// as far as im aware this is not undefined behaviour. (2)
 		return self.slice[self.slice.len]
 	}
 	remove := fn(self: ^Self, n: uint): ?T {
 		if n >= self.slice.len return null
-		if n + 1 == self.slice.len return self.pop()
+		if n + 1 == self.slice.len return self.pop_unchecked()
 		temp := self.slice[n]
 		memmove(self.slice.ptr + n, self.slice.ptr + n + 1, (self.slice.len - n - 1) * @sizeof(T))
 		self.slice.len -= 1
 		return temp
 	}
+	swap_remove := fn(self: ^Self, n: uint): ?T {
+		if n >= self.slice.len return null
+		if n + 1 == self.slice.len return self.pop_unchecked()
+		temp := self.slice[n]
+		self.slice[n] = self.pop_unchecked()
+		return temp
+	}
 	find := fn(self: ^Self, rhs: T): ?uint {
 		i := 0
-		loop if self.get(i) == rhs return i else if i == self.slice.len return null else i += 1
+		loop if self.get_unchecked(i) == rhs return i else if i == self.slice.len return null else i += 1
 	}
 	$sort := fn(self: ^Self): void {
 		_ = quicksort(compare, self.slice, 0, self.slice.len - 1)
@@ -76,5 +93,5 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 		_ = quicksort(func, self.slice, 0, self.slice.len - 1)
 	}
 	$len := fn(self: ^Self): uint return self.slice.len
-	$capacity := fn(self: ^Self): uint return self.capacity
+	$capacity := fn(self: ^Self): uint return self.cap
 }
