@@ -38,7 +38,9 @@ main := fn(argc: uint, argv: []^void): uint {
 
 	// return 0
 
-	// ! the following will ONLY work on ableos
+	/* ! the following will ONLY work on ableos
+	 * due to fun compiler bugs
+	 */
 	allocator := lily.alloc.SimpleAllocator.new()
 	defer allocator.deinit()
 	map := lily.collections.HashMap(

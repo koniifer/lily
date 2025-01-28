@@ -39,7 +39,7 @@ HashMap := fn($Key: type, $Value: type, $Hasher: type, $Allocator: type): type r
 
 	new := fn(allocator: ^Allocator): Self {
 		hasher := Hasher.default()
-		buckets := Buckets(Key, Value, Allocator).new_with_capacity(allocator, 16)
+		buckets := Buckets(Key, Value, Allocator).with_capacity(allocator, 16)
 		// ! (compiler) bug: have to use for-loop here rather than using buckets.len(), otherwise we loop infinitely
 		i := 0
 		loop if i == 16 break else {
@@ -53,7 +53,7 @@ HashMap := fn($Key: type, $Value: type, $Hasher: type, $Allocator: type): type r
 	// seems like bad performance...
 	resize := fn(self: ^Self): void {
 		new_cap := next_power_of_two(self.buckets.len() * 2)
-		new_buckets := @TypeOf(self.buckets).new_with_capacity(self.allocator, new_cap)
+		new_buckets := @TypeOf(self.buckets).with_capacity(self.allocator, new_cap)
 		// same compiler bug as above...
 		i := 0
 		loop if i == new_cap break else {

@@ -5,7 +5,7 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 	allocator: ^Allocator,
 	cap: uint = 0,
 	$new := fn(allocator: ^Allocator): Self return .{slice: Type([]T).uninit(), allocator}
-	$new_with_capacity := fn(allocator: ^Allocator, cap: uint): Self {
+	$with_capacity := fn(allocator: ^Allocator, cap: uint): Self {
 		// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
 		new_alloc := @unwrap(allocator.alloc(T, cap))
 		return .{slice: new_alloc[0..0], allocator, cap}
@@ -86,12 +86,10 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 		i := 0
 		loop if self.get_unchecked(i) == rhs return i else if i == self.slice.len return null else i += 1
 	}
-	$sort := fn(self: ^Self): void {
-		_ = quicksort(compare, self.slice, 0, self.slice.len - 1)
-	}
 	$sort_with := fn(self: ^Self, $func: type): void {
 		_ = quicksort(func, self.slice, 0, self.slice.len - 1)
 	}
+	$sort := fn(self: ^Self): void self.sort_with(compare)
 	$len := fn(self: ^Self): uint return self.slice.len
 	$capacity := fn(self: ^Self): uint return self.cap
 }
