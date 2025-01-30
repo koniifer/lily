@@ -22,6 +22,7 @@ Config := struct {
 // ----------------------------------------------------
 
 collections := @use("collections/lib.hb")
+process := @use("process.hb")
 result := @use("result.hb")
 string := @use("string.hb")
 alloc := @use("alloc/lib.hb")

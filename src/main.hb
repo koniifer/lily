@@ -41,23 +41,23 @@ main := fn(argc: uint, argv: []^void): uint {
 	/* ! the following will ONLY work on ableos
 	 * due to fun compiler bugs
 	 */
-	allocator := lily.alloc.SimpleAllocator.new()
-	defer allocator.deinit()
-	map := lily.collections.HashMap(
-		uint,
-		uint,
-		lily.hash.FoldHasher,
-		lily.alloc.SimpleAllocator,
-	).new(&allocator)
-	defer map.deinit()
+	// allocator := lily.alloc.SimpleAllocator.new()
+	// defer allocator.deinit()
+	// map := lily.collections.HashMap(
+	// 	uint,
+	// 	uint,
+	// 	lily.hash.FoldHasher,
+	// 	lily.alloc.SimpleAllocator,
+	// ).new(&allocator)
+	// defer map.deinit()
 
-	i := 0
-	$loop if i == 99 * 2 break else {
-		_ = map.insert(i, 0)
-		_ = map.insert(i + 1, 0)
-		i += 2
-	}
-	map.keys().for_each(lily.print)
+	// i := 0
+	// $loop if i == 99 * 2 break else {
+	// 	_ = map.insert(i, 0)
+	// 	_ = map.insert(i + 1, 0)
+	// 	i += 2
+	// }
+	// map.keys().for_each(lily.print)
 
 	// fun thing
 	// _ = map.insert("Farewell, World!", "beep boop")
@@ -69,6 +69,15 @@ main := fn(argc: uint, argv: []^void): uint {
 
 	// lily.print(map.get("asdfasdf!"))
 	// lily.print(map.get("Hello, World!"))
+
+	id := lily.process.fork()
+	lily.print("hello, world")
+
+	if id == 0 {
+		lily.print("child")
+	} else {
+		lily.print("parent")
+	}
 
 	return 0
 }

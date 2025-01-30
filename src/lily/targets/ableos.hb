@@ -47,3 +47,5 @@ $getrandom := fn(dest: ^u8, size: uint): void return @eca(3, 4, dest, size)
 
 $exit := fn(code: int): void {
 }
+
+$fork := fn(): uint return @eca(3, 7)

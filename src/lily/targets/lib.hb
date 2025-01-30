@@ -21,7 +21,7 @@ Target := enum {
 	}
 	/* ! memmove, memcpy, memset, exit, currently suffixed with `_w` to distinguish them from the wrapper functions */;
 	/* todo: reorganise these */;
-	.{alloc, alloc_zeroed, realloc, dealloc, memmove: memmove_w, memcpy: memcpy_w, memset: memset_w, exit: exit_w, getrandom, page_size, calculate_pages} := Self.Lib(Self.current());
+	.{alloc, alloc_zeroed, realloc, dealloc, memmove: memmove_w, memcpy: memcpy_w, memset: memset_w, exit: exit_w, getrandom, page_size, calculate_pages, fork} := Self.Lib(Self.current());
 	.{printf_str} := Self.Lib(.LibC);
 	.{LogMsg} := Self.Lib(.AbleOS)
 }

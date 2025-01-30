@@ -8,6 +8,7 @@ memset := fn(dest: ^u8, src: u8, size: uint): void @import()
 exit := fn(code: int): void @import()
 printf_str := fn(str0: ^u8, strlen: uint, str1: ^u8): void @import("printf")
 getrandom := fn(dest: ^u8, size: uint): void @import()
+fork := fn(): uint @import()
 
 // temp
 $page_size := fn(): uint {
