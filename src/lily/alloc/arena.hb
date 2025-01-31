@@ -10,11 +10,11 @@ ArenaAllocator := struct {
 	size: uint,
 	allocated: uint,
 
-	$new := fn(): Self {
-		allocated := 0
-					   allocated = Target.page_size()
-		ptr := Target.alloc_zeroed(allocated)
-		return .(ptr, allocated, 0)
+	new := fn(): Self {
+		size := Target.page_size()
+		// todo(?): spec should accept ?Self as return type
+		ptr := @unwrap(Target.alloc_zeroed(size))
+		return .(ptr, size, 0)
 	}
 	deinit := fn(self: ^Self): void {
 		match Target.current() {
