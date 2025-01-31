@@ -1,10 +1,11 @@
 #!/bin/sh
-set -eu
+set -u
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 readonly SCRIPT_DIR
 readonly HBC_COMMIT="18e8a831"
 readonly SRC_DIR="$SCRIPT_DIR/src"
+readonly TEST_DIR="$SRC_DIR/test"
 readonly BUILD_PATH="$SCRIPT_DIR/target/build"
 readonly CHECKSUM_FILE="$BUILD_PATH/checksum"
 
@@ -12,15 +13,24 @@ hbc_flags="--backend-flags=opt_level=speed"
 linker=""
 target="default"
 run=0
+test="none"
 dump_asm=0
 
 die() {
-    printf "ERROR: %s\n" "$1" >&2
+    error "$1"
     exit 1
 }
 
+error() {
+    printf "\033[31mERROR\033[0m: %s\n" "$1" >&2
+}
+
 log() {
-    printf "INFO: %s\n" "$1" >&2
+    printf "\033[32mINFO\033[0m: %s\n" "$1" >&2
+}
+
+warn() {
+    printf "\033[33mWARN\033[0m: %s\n" "$1" >&2
 }
 
 check_hbc() {
@@ -55,11 +65,12 @@ parse_args() {
         -h | --help)
             cat <<EOF
 Usage: $0 [options]
-    -r, --run               Run the output binary
-    -a, --dump-asm          Dump the assembly to stdout
-    -l, --linker <linker>   Specify linker
-    -t, --target <target>   Specify target triple (or an alias: 'libc' 'ableos' 'hbvm')
-    -h, --help              Show this help message
+    -r, --run                     Run the output binary
+    -a, --dump-asm                Dump the assembly to stdout
+    -l, --linker <linker>         Specify linker
+    -t, --target <target>         Specify target triple (or an alias: 'default' 'libc' 'ableos' 'hbvm')
+    -h, --help                    Show this help message
+    -u, --test <lang/lily/[all]>  Run tests (incompatible with '--target', '--dump-asm', '--run')
 Examples:
     $0 -t ableos
     $0 -r -l 'zig cc' -t libc
@@ -74,9 +85,25 @@ EOF
             target=$2
             shift
             ;;
+        -u | --test)
+            if [ -z "${2:-}" ]; then
+                test="all"
+            else
+                [ "$2" = "none" ] && warn "'--test none' is redundant"
+                test=$2
+                shift
+            fi
+            ;;
+        --test=?*)
+            if [ "${1#*=}" = "none" ]; then warn "'--test=none' is redundant"; fi
+            test=${1#*=}
+            ;;
+        --test=)
+            die "'--test=' requires a non-empty option argument"
+            ;;
         --target=?*) target=${1#*=} ;;
         --target=)
-            die "'--target' requires a non-empty option argument"
+            die "'--target=' requires a non-empty option argument"
             ;;
         -l | --linker)
             [ -z "${2:-}" ] && die "'--linker' requires a non-empty option argument"
@@ -103,14 +130,14 @@ EOF
     done
     case $target in
     hbvm | ableos)
-        if [ $run = 1 ]; then die "'--run' cannot be set with '--target $target'"; fi
         target="unknown-virt-unknown"
+        if [ $run = 1 ]; then die "'--run' cannot be set with '--target $target'"; fi
         ;;
-    libc) target="default" ;;
+    libc | default) target="default" ;;
     esac
 }
 
-build() {
+do_build() {
     if check_changes || [ ! -e "$BUILD_PATH/$target/lily" ]; then
         if [ "$target" = "unknown-virt-unknown" ]; then
             out="$BUILD_PATH/$target/lily.axe"
@@ -124,7 +151,7 @@ build() {
                 {
                     rm -f "$BUILD_PATH/$target/lily"
                     rm -f "$CHECKSUM_FILE"
-                    die "Compilation failed"
+                    die "compilation failed"
                 }
         else
             if [ -z "$linker" ]; then
@@ -156,14 +183,153 @@ build() {
     fi
 }
 
+parse_test() {
+    test_file=$1
+    in_comment=0
+    while IFS= read -r line; do
+        if [ "$in_comment" -eq 0 ]; then
+            case "$line" in
+            '/*'*)
+                in_comment=1
+                case "$line" in
+                *'*/'*)
+                    line_content=$(echo "$line" | sed 's/^\/\*//; s/\*\/.*//')
+                    process_line "$line_content"
+                    in_comment=0
+                    return 0
+                    ;;
+                *)
+                    line_content=$(echo "$line" | sed 's/^\/\*//')
+                    process_line "$line_content"
+                    ;;
+                esac
+                ;;
+            esac
+        else
+            case "$line" in
+            *'*/'*)
+                in_comment=0
+                line_content=$(echo "$line" | sed 's/\*\/.*//')
+                process_line "$line_content"
+                return 0
+                ;;
+            *)
+                process_line "$line"
+                ;;
+            esac
+        fi
+    done <"$test_file"
+}
+
+process_line() {
+    line=$1
+    trimmed_line=$(echo "$line" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+    case "$trimmed_line" in
+    \**)
+        content=$(echo "$trimmed_line" | sed 's/^\*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
+        key=$(echo "$content" | cut -d':' -f1 | sed 's/[[:space:]]*$//')
+        value=$(echo "$content" | cut -d':' -f2- | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+        case "$key" in
+        exit) exit_code="$value" ;;
+        args) args_input="$value" ;;
+        stdout) stdout_expected="$value" ;;
+        timeout) timeout_val="$value" ;;
+        esac
+        ;;
+    esac
+}
+
+do_tests() {
+
+    if [ -z "$linker" ]; then
+        for cmd in "zig cc" clang gcc; do
+            if command -v "${cmd%% *}" >/dev/null 2>&1; then
+                linker=$cmd
+                break
+            fi
+        done
+        [ -z "$linker" ] && die "Could not find zig, clang, or gcc. Please install any, or add to PATH."
+    fi
+
+    mkdir -p "$BUILD_PATH/test" || die "Failed to create build directory"
+    [ -w "$BUILD_PATH/test" ] || die "$BUILD_PATH/test is not writable"
+
+    test_dir="$TEST_DIR"
+    [ ! "$test" = "all" ] && test_dir="$test_dir/$test"
+
+    find "$test_dir" -type f | {
+        while read -r file; do
+            [ -z "$file" ] && continue
+            base_name="$(basename "$file")"
+            file_name="${base_name%.*}"
+
+            (
+                log "running test $file_name"
+                failed=0
+                exit_code=""
+                args_input=""
+                stdout_expected=""
+                timeout_val=""
+                parse_test "$file"
+
+                hbc "$file" $hbc_flags >"$BUILD_PATH/test/$file_name.o" || {
+                    rm -f "$BUILD_PATH/test/$file_name.o"
+                    error "compilation failed"
+                    failed=1
+                }
+
+                if [ $failed -eq 0 ]; then
+                    $linker "$BUILD_PATH/test/$file_name.o" -o "$BUILD_PATH/test/$file_name"
+                    rm "$BUILD_PATH/test/$file_name.o"
+
+                    if [ -z "$timeout_val" ]; then
+                        stdout="$("$BUILD_PATH/test/$file_name" $args_input)"
+                        status=$?
+                    else
+                        stdout="$(timeout "$timeout_val" "$BUILD_PATH/test/$file_name" $args_input)"
+                        status=$?
+                        [ $status -eq 124 ] && {
+                            failed=1
+                            echo "timeout"
+                        }
+                    fi
+
+                    [ "$exit_code" != "$status" ] && failed=1
+                    [ "$stdout" != "$stdout_expected" ] && {
+                        echo "expected: $stdout_expected, got: $stdout"
+                        failed=1
+                    }
+
+                    rm "$BUILD_PATH/test/$file_name"
+                fi
+
+                [ $failed -eq 1 ] && error "test $file_name failed"
+            ) &
+        done
+
+        wait
+    }
+
+    rmdir "$BUILD_PATH/test" || die "Failed to remove build directory"
+}
 main() {
     parse_args "$@"
 
     mkdir -p "$BUILD_PATH" || die "Failed to create build directory"
     [ -w "$BUILD_PATH" ] || die "$BUILD_PATH is not writable"
-
     check_hbc
-    build
+
+    case $test in
+    lang | lily | all)
+        if [ $run = 1 ]; then warn "'--run' is redundant when '--test' is set"; fi
+        if [ ! "$target" = "default" ]; then die "'--test' cannot be set with '--target $target'"; fi
+        if [ $dump_asm = 1 ]; then die "'--dump-asm' cannot be set when '--test' is set"; fi
+        do_tests
+        ;;
+    none) do_build ;;
+    *) die "test type '$test' is unknown" ;;
+    esac
+
 }
 
 main "$@"
