@@ -10,15 +10,11 @@ ArenaAllocator := struct {
 	size: uint,
 	allocated: uint,
 
-	$new := fn(size: uint): Self {
-		allocated := idk
-		if size == 0 {
-			allocated = Target.page_size()
-		} else {
-			allocated = size
-		}
-		ptr := Target.alloc_zeroed(size)
-		return .(ptr, size, 0)
+	$new := fn(): Self {
+		allocated := 0
+					   allocated = Target.page_size()
+		ptr := Target.alloc_zeroed(allocated)
+		return .(ptr, allocated, 0)
 	}
 	deinit := fn(self: ^Self): void {
 		match Target.current() {
@@ -37,7 +33,7 @@ ArenaAllocator := struct {
 		log.debug("allocated")
 		return @bitcast(allocation)
 	}
-	alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?^T {
+	$alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?^T {
 		return self.alloc(T, count)
 	}
 	realloc := fn(self: ^Self, $T: type, ptr: ^T, count: uint): ?^T {
