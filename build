@@ -6,76 +6,62 @@ readonly SCRIPT_DIR
 readonly HBC_COMMIT="18e8a831"
 readonly SRC_DIR="$SCRIPT_DIR/src"
 readonly TEST_DIR="$SRC_DIR/test"
-readonly BUILD_PATH="$SCRIPT_DIR/target/build"
+readonly BUILD_PATH="$SCRIPT_DIR/target"
 readonly CHECKSUM_FILE="$BUILD_PATH/checksum"
 
 hbc_flags="--backend-flags=opt_level=speed"
-linker=""
-target="default"
-run=0
-test="none"
-dump_asm=0
+linker="" target="default" run=0 test="none" dump_asm=0
 
-die() {
-    error "$1"
-    exit 1
-}
-
-error() {
-    printf "\033[31mERROR\033[0m: %s\n" "$1" >&2
-}
-
-log() {
-    printf "\033[32mINFO\033[0m: %s\n" "$1" >&2
-}
-
-warn() {
-    printf "\033[33mWARN\033[0m: %s\n" "$1" >&2
-}
+die() { error "$1" && exit 1; }
+error() { printf "\033[31mERROR\033[0m: %s\n" "$1" >&2; }
+log() { printf "\033[32mINFO\033[0m: %s\n" "$1" >&2; }
+warn() { printf "\033[33mWARN\033[0m: %s\n" "$1" >&2; }
 
 check_hbc() {
-    command -v hbc >/dev/null 2>&1 || {
-        log "hblang compiler not found in \$PATH"
-        command -v cargo >/dev/null 2>&1 || die "hblang compiler is missing, and could not use cargo to install"
-    }
+    command -v hbc >/dev/null 2>&1 && return 0
+    log "hblang compiler not found in \$PATH"
+    command -v cargo >/dev/null 2>&1 || die "missing both hbc and cargo"
 
-    command -v cargo >/dev/null 2>&1 && {
-        cargo_ver=$(cargo install --list | awk '/holey-bytes/ {match($0, /[0-9a-f]{8}/); if (RSTART) print substr($0, RSTART, 8)}')
-        [ "${cargo_ver:-}" = "$HBC_COMMIT" ] && return 0
+    cargo_ver=$(cargo install --list | awk '/holey-bytes/ {if(match($0,/[0-9a-f]+/)) print substr($0,RSTART,8)}')
+    [ "$cargo_ver" = "$HBC_COMMIT" ] && return 0
 
-        log "Local hbc version: ${cargo_ver:-None}, Required: $HBC_COMMIT. Installing correct version..."
-        cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc --debug --rev "$HBC_COMMIT" >/dev/null 2>&1 ||
-            die "Failed to install hblang compiler"
-        log "hblang compiler installed successfully"
-    }
+    log "installing hbc@$HBC_COMMIT..."
+    cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc --debug --rev "$HBC_COMMIT" >/dev/null 2>&1 ||
+        die "failed to install hbc (do you have nightly rust installed?)"
 }
 
 check_changes() {
+    previous_checksum=""
     [ -r "$CHECKSUM_FILE" ] && previous_checksum=$(cat "$CHECKSUM_FILE")
-    current_checksum=$(printf "%s%s%s" \
-        "$(find "$SRC_DIR" -type f -exec md5sum {} + | sort | md5sum)" \
-        "$linker" "$target" | md5sum)
+    current_checksum=$( (
+        find "$SRC_DIR" -type f -exec md5sum {} + | LC_ALL=C sort
+        printf "%s\n%s" "$linker" "$target"
+    ) | md5sum)
     echo "$current_checksum" >"$CHECKSUM_FILE"
-    [ "${previous_checksum:-}" != "$current_checksum" ]
+    [ "$previous_checksum" != "$current_checksum" ]
+}
+
+show_help() {
+    cat <<EOF
+Usage: $0 [options]
+    -r, --run        run the output binary
+    -a, --dump-asm   dump assembly to stdout
+    -l, --linker     specify linker (default: auto-detect)
+    -t, --target     target triple/alias (<default>, libc, ableos, hbvm)
+    -h, --help       show this help
+    -u, --test       run tests (lang/lily/<all>)
+Examples:
+    $0 -t ableos
+    $0 -r -l 'zig cc' -t libc
+    $0 -a -t ableos > out.hbf
+EOF
 }
 
 parse_args() {
     while [ $# -gt 0 ]; do
         case ${1:-""} in
         -h | --help)
-            cat <<EOF
-Usage: $0 [options]
-    -r, --run                     Run the output binary
-    -a, --dump-asm                Dump the assembly to stdout
-    -l, --linker <linker>         Specify linker
-    -t, --target <target>         Specify target triple (or an alias: 'default' 'libc' 'ableos' 'hbvm')
-    -h, --help                    Show this help message
-    -u, --test <lang/lily/[all]>  Run tests (incompatible with '--target', '--dump-asm', '--run')
-Examples:
-    $0 -t ableos
-    $0 -r -l 'zig cc' -t libc
-    $0 -a -t ableos > out.hbf
-EOF
+            show_help
             exit
             ;;
         -r | --run) run=1 ;;
@@ -123,7 +109,7 @@ EOF
             shift
             break
             ;;
-        -?*) die "Unknown option $1" ;;
+        -?*) die "unknown option $1" ;;
         *) break ;;
         esac
         shift
@@ -137,199 +123,147 @@ EOF
     esac
 }
 
-do_build() {
-    if check_changes || [ ! -e "$BUILD_PATH/$target/lily" ]; then
-        if [ "$target" = "unknown-virt-unknown" ]; then
-            out="$BUILD_PATH/$target/lily.axe"
-            if [ $dump_asm = 1 ]; then
-                hbc_flags="$hbc_flags --dump-asm"
-                out="/dev/stdout"
-            fi
-            mkdir -p "$BUILD_PATH/$target" || die "Failed to create build directory"
-            [ -w "$BUILD_PATH/$target" ] || die "$BUILD_PATH/$target is not writable"
-            hbc "$SCRIPT_DIR/src/main.hb" $hbc_flags "--target=unknown-virt-unknown" >"$out" ||
-                {
-                    rm -f "$BUILD_PATH/$target/lily"
-                    rm -f "$CHECKSUM_FILE"
-                    die "compilation failed"
-                }
-        else
-            if [ -z "$linker" ]; then
-                for cmd in "zig cc" clang gcc; do
-                    if command -v "${cmd%% *}" >/dev/null 2>&1; then
-                        linker=$cmd
-                        break
-                    fi
-                done
-                [ -z "$linker" ] && die "Could not find zig, clang, or gcc. Please install any, or add to PATH."
-            fi
-            if [ ! "$target" = "default" ]; then
-                hbc_flags="$hbc_flags --target=$target"
-            fi
-            mkdir -p "$BUILD_PATH/$target" || die "Failed to create build directory"
-            [ -w "$BUILD_PATH/$target" ] || die "$BUILD_PATH/$target is not writable"
-            hbc "$SCRIPT_DIR/src/main.hb" $hbc_flags >"$BUILD_PATH/$target/lily.o" ||
-                {
-                    rm -f "$BUILD_PATH/$target/lily.o"
-                    rm -f "$CHECKSUM_FILE"
-                    die "Compilation failed"
-                }
-            $linker "$BUILD_PATH/$target/lily.o" -o "$BUILD_PATH/$target/lily"
-        fi
-    fi
-    if [ ! "$target" = "unknown-virt-unknown" ]; then
-        if [ "$run" = 1 ]; then exec "$BUILD_PATH/$target/lily"; fi
-        if [ "$dump_asm" = 1 ]; then objdump -d -M intel --no-show-raw-insn "$BUILD_PATH/$target/lily.o" | grep -E "^\s+[0-9a-f]+:" | sed -E 's/^\s+[0-9a-f]+:\s+//'; fi
-    fi
+build_failed() {
+    rm -f "$BUILD_PATH/$target/lily" "$CHECKSUM_FILE"
+    die "build failed"
+}
+
+detect_linker() {
+    for cmd in "zig cc" clang gcc; do
+        command -v "${cmd%% *}" >/dev/null 2>&1 && {
+            linker=$cmd
+            return
+        }
+    done
+    die "no suitable linker found"
+}
+
+post_build() {
+    [ "$target" = "unknown-virt-unknown" ] && return
+    [ $run -eq 1 ] && exec "$BUILD_PATH/$target/lily"
+    [ $dump_asm -eq 1 ] && objdump -d -M intel --no-show-raw-insn "$BUILD_PATH/$target/lily.o" |
+        awk '/^\s+[0-9a-f]+:/ {sub(/^[ \t]+/, ""); print}'
 }
 
 parse_test() {
-    test_file=$1
-    in_comment=0
+    in_comment=0 exit_code="" args_input="" stdout_expected="" timeout_val=""
     while IFS= read -r line; do
-        if [ "$in_comment" -eq 0 ]; then
-            case "$line" in
-            '/*'*)
-                in_comment=1
-                case "$line" in
-                *'*/'*)
-                    line_content=$(echo "$line" | sed 's/^\/\*//; s/\*\/.*//')
-                    process_line "$line_content"
-                    in_comment=0
-                    return 0
-                    ;;
-                *)
-                    line_content=$(echo "$line" | sed 's/^\/\*//')
-                    process_line "$line_content"
-                    ;;
-                esac
-                ;;
-            esac
-        else
-            case "$line" in
-            *'*/'*)
-                in_comment=0
-                line_content=$(echo "$line" | sed 's/\*\/.*//')
-                process_line "$line_content"
-                return 0
-                ;;
-            *)
-                process_line "$line"
-                ;;
-            esac
-        fi
-    done <"$test_file"
+        case $in_comment in
+        0) case $line in "/*"*)
+            in_comment=1
+            line=${line#/*}
+            ;;
+        esac ;;
+        1) case $line in *"*/"*)
+            line=${line%*/}
+            in_comment=2
+            ;;
+        esac ;;
+        esac
+        line=$(echo "$line" | sed 's/^[[:space:]]*\*[[:space:]]\{0,1\}//; s/[[:space:]]*$//')
+        [ $in_comment -ne 0 ] && process_test_line "${line%%*/}"
+        [ $in_comment -eq 2 ] && break
+    done <"$1"
 }
 
-process_line() {
-    line=$1
-    trimmed_line=$(echo "$line" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-    case "$trimmed_line" in
-    \**)
-        content=$(echo "$trimmed_line" | sed 's/^\*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
-        key=$(echo "$content" | cut -d':' -f1 | sed 's/[[:space:]]*$//')
-        value=$(echo "$content" | cut -d':' -f2- | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-        case "$key" in
-        exit) exit_code="$value" ;;
-        args) args_input="$value" ;;
-        stdout) stdout_expected="$value" ;;
-        timeout) timeout_val="$value" ;;
-        esac
-        ;;
+process_test_line() {
+    line=$(echo "$1" | sed 's/^[[:space:]]*\*[[:space:]]*//; s/[[:space:]]*$//')
+    [ -z "$line" ] && return
+    IFS=: read -r key value <<EOF
+$line
+EOF
+    key=$(echo "$key" | tr -d ' ')
+    value=$(echo "$value" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+    case $key in
+    exit) exit_code=$value ;;
+    args) args_input=$value ;;
+    stdout) stdout_expected=$value ;;
+    timeout) timeout_val=${value} ;;
     esac
 }
 
-do_tests() {
+run_test() {
+    file=$1 name=$2 output="" rc=0
+    parse_test "$file"
+    hbc "$file" $hbc_flags >"$BUILD_PATH/test/$name.o" || return 1
+    $linker "$BUILD_PATH/test/$name.o" -o "$BUILD_PATH/test/$name" || return 1
 
-    if [ -z "$linker" ]; then
-        for cmd in "zig cc" clang gcc; do
-            if command -v "${cmd%% *}" >/dev/null 2>&1; then
-                linker=$cmd
-                break
-            fi
-        done
-        [ -z "$linker" ] && die "Could not find zig, clang, or gcc. Please install any, or add to PATH."
+    if [ -n "$timeout_val" ]; then
+        output=$(timeout "$timeout_val" "$BUILD_PATH/test/$name" $args_input 2>&1)
+        rc=$?
+        [ $rc -eq 124 ] && {
+            error "timeout"
+            return 1
+        }
+    else
+        output=$("$BUILD_PATH/test/$name" $args_input 2>&1)
+        rc=$?
     fi
 
-    mkdir -p "$BUILD_PATH/test" || die "Failed to create build directory"
-    [ -w "$BUILD_PATH/test" ] || die "$BUILD_PATH/test is not writable"
-
-    test_dir="$TEST_DIR"
-    [ ! "$test" = "all" ] && test_dir="$test_dir/$test"
-
-    find "$test_dir" -type f | {
-        while read -r file; do
-            [ -z "$file" ] && continue
-            base_name="$(basename "$file")"
-            file_name="${base_name%.*}"
-
-            (
-                log "running test $file_name"
-                failed=0
-                exit_code=""
-                args_input=""
-                stdout_expected=""
-                timeout_val=""
-                parse_test "$file"
-
-                hbc "$file" $hbc_flags >"$BUILD_PATH/test/$file_name.o" || {
-                    rm -f "$BUILD_PATH/test/$file_name.o"
-                    error "compilation failed"
-                    failed=1
-                }
-
-                if [ $failed -eq 0 ]; then
-                    $linker "$BUILD_PATH/test/$file_name.o" -o "$BUILD_PATH/test/$file_name"
-                    rm "$BUILD_PATH/test/$file_name.o"
-
-                    if [ -z "$timeout_val" ]; then
-                        stdout="$("$BUILD_PATH/test/$file_name" $args_input)"
-                        status=$?
-                    else
-                        stdout="$(timeout "$timeout_val" "$BUILD_PATH/test/$file_name" $args_input)"
-                        status=$?
-                        [ $status -eq 124 ] && {
-                            failed=1
-                            echo "timeout"
-                        }
-                    fi
-
-                    [ "$exit_code" != "$status" ] && failed=1
-                    [ "$stdout" != "$stdout_expected" ] && {
-                        echo "expected: $stdout_expected, got: $stdout"
-                        failed=1
-                    }
-
-                    rm "$BUILD_PATH/test/$file_name"
-                fi
-
-                [ $failed -eq 1 ] && error "test $file_name failed"
-            ) &
-        done
-
-        wait
+    [ "$rc" != "$exit_code" ] && {
+        error "exit code $rc != $exit_code"
+        return 1
     }
-
-    rmdir "$BUILD_PATH/test" || die "Failed to remove build directory"
+    [ -n "$stdout_expected" ] && [ "$output" != "$stdout_expected" ] && {
+        error "output mismatch
+expected: $stdout_expected
+got:      $output"
+        return 1
+    }
 }
+
+# todo: this spawns every test all at once. consider limiting to $(nproc) tests at once.
+do_tests() {
+    detect_linker
+    mkdir -p "$BUILD_PATH/test" || die "failed to create test dir"
+
+    find "${TEST_DIR}/${test#all}" -type f | while IFS= read -r file; do
+        [ -f "$file" ] || continue
+        test_name=$(basename "$file" .hb)
+        log "Testing $test_name"
+        (run_test "$file" "$test_name") &
+    done
+    wait
+}
+
+do_build() {
+    mkdir -p "$BUILD_PATH/$target" || die "failed to create $BUILD_PATH/$target"
+    [ -w "$BUILD_PATH/$target" ] || die "no write permission"
+
+    if check_changes || [ ! -e "$BUILD_PATH/$target/lily" ]; then
+        if [ "$target" = "unknown-virt-unknown" ]; then
+            out="$BUILD_PATH/$target/lily.axe"
+            [ $dump_asm -eq 1 ] && {
+                hbc_flags="$hbc_flags --dump-asm"
+                out="/dev/stdout"
+            }
+            hbc "$SRC_DIR/main.hb" $hbc_flags --target="$target" >"$out" || build_failed
+        else
+            [ -z "$linker" ] && detect_linker
+            [ "$target" != "default" ] && hbc_flags="$hbc_flags --target=$target"
+            hbc "$SRC_DIR/main.hb" $hbc_flags >"$BUILD_PATH/$target/lily.o" || build_failed
+            $linker "$BUILD_PATH/$target/lily.o" -o "$BUILD_PATH/$target/lily"
+        fi
+    fi
+
+    post_build
+}
+
 main() {
     parse_args "$@"
-
-    mkdir -p "$BUILD_PATH" || die "Failed to create build directory"
-    [ -w "$BUILD_PATH" ] || die "$BUILD_PATH is not writable"
+    mkdir -p "$BUILD_PATH" || die "can't create build dir"
     check_hbc
 
     case $test in
+    none) do_build ;;
     lang | lily | all)
-        if [ $run = 1 ]; then warn "'--run' is redundant when '--test' is set"; fi
-        if [ ! "$target" = "default" ]; then die "'--test' cannot be set with '--target $target'"; fi
-        if [ $dump_asm = 1 ]; then die "'--dump-asm' cannot be set when '--test' is set"; fi
+        [ "$test" = "all" ] && test=""
+        [ $dump_asm -eq 1 ] && die "--dump-asm incompatible with tests"
+        [ "$target" != "default" ] && die "--target incompatible with tests"
         do_tests
         ;;
-    none) do_build ;;
-    *) die "test type '$test' is unknown" ;;
+    *) die "unknown test: $test" ;;
     esac
-
 }
 
 main "$@"
