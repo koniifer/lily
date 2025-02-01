@@ -185,8 +185,14 @@ EOF
 run_test() {
     file=$1 name=$2 output="" rc=0 failed=0
     parse_test "$file"
-    hbc "$file" $hbc_flags >"$BUILD_PATH/test/$name.o" || return 1
-    $linker "$BUILD_PATH/test/$name.o" -o "$BUILD_PATH/test/$name" || return 1
+    hbc "$file" $hbc_flags >"$BUILD_PATH/test/$name.o" 2>&1
+    rc=$?
+    [ $rc -ne 0 ] && {
+        # todo: quiet mode to hide compilation errors.
+        error "$name: compilation failed: $(cat "$BUILD_PATH/test/$name.o")"
+        return 1
+    }
+    $linker "$BUILD_PATH/test/$name.o" -o "$BUILD_PATH/test/$name" || die "linking failed:"
 
     if [ -n "$timeout_val" ]; then
         output=$(timeout "$timeout_val" "$BUILD_PATH/test/$name" $args_input 2>&1)
@@ -231,6 +237,7 @@ do_tests() {
     wait
     rm -r "$tmpfile" "$BUILD_PATH/test"
 }
+
 do_build() {
     mkdir -p "$BUILD_PATH/$target" || die "failed to create $BUILD_PATH/$target"
     [ -w "$BUILD_PATH/$target" ] || die "no write permission"

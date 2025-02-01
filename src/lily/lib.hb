@@ -46,23 +46,23 @@ $panic := fn(message: ?[]u8): never {
 
 // ! exit, memcpy, memmove, and memset are all temporary wrapper functions
 $exit := fn(code: int): never {
-	Target.exit_w(code)
+	Target.exit(code)
 	die
 }
 
 $memcpy := fn(dest: @Any(), src: @Any(), size: uint): void {
 	if TypeOf(dest).kind() != .Pointer | TypeOf(src).kind() != .Pointer @error("memcpy requires a pointer")
-	Target.memcpy_w(@bitcast(dest), @bitcast(src), size)
+	Target.memcpy(@bitcast(dest), @bitcast(src), size)
 }
 
 $memmove := fn(dest: @Any(), src: @Any(), size: uint): void {
 	if TypeOf(dest).kind() != .Pointer | TypeOf(src).kind() != .Pointer @error("memmove requires a pointer")
-	Target.memmove_w(@bitcast(dest), @bitcast(src), size)
+	Target.memmove(@bitcast(dest), @bitcast(src), size)
 }
 
 $memset := fn(dest: @Any(), src: u8, size: uint): void {
 	if TypeOf(dest).kind() != .Pointer @error("memset requires a pointer")
-	Target.memset_w(@bitcast(dest), src, size)
+	Target.memset(@bitcast(dest), src, size)
 }
 
 _qs_partition := fn($func: type, array: @Any(), start: uint, end: uint): uint {
