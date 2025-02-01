@@ -30,12 +30,11 @@ RawAllocator := struct {
 	realloc := fn(self: ^Self, $T: type, ptr: ^T, count: uint): ?^T {
 		if self.size == 0 return null
 		log.debug("reallocated raw")
-				new_ptr := Target.realloc(self.ptr, self.size, count * @sizeof(T))
-				if new_ptr != null {
-					self.ptr = new_ptr
-					self.size = count * @sizeof(T)
-				}
-				return @bitcast(new_ptr)
+		// ! (libc) (compiler) bug: null check broken. unwrapping.
+		new_ptr := @unwrap(Target.realloc(self.ptr, self.size, count * @sizeof(T)))
+			self.ptr = new_ptr
+			self.size = count * @sizeof(T)
+		return @bitcast(new_ptr)
 	}
 	// ! INLINING THIS FUNCTION CAUSES MISCOMPILATION!! DO NOT INLINE IT!! :) :) :)
 	dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {

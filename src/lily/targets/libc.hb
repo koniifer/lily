@@ -1,6 +1,6 @@
 alloc := fn(size: uint): ?^u8 @import("malloc")
 alloc_zeroed := fn(size: uint): ?^u8 @import("calloc")
-realloc_c := fn(ptr: ^u8, size: uint): ?^u8 @import()
+realloc_c := fn(ptr: ^u8, size: uint): ?^u8 @import("realloc")
 dealloc_c := fn(ptr: ^u8): void @import("free")
 memmove := fn(dest: ^u8, src: ^u8, size: uint): void @import()
 memcpy := fn(dest: ^u8, src: ^u8, size: uint): void @import()

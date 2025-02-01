@@ -21,22 +21,16 @@ ArenaAllocator := struct {
 		return .(ptr, size, 0, vec, raw)
 	}
 	deinit := fn(self: ^Self): void {
-		match Target.current() {
-			.LibC => Target.dealloc(self.ptr),
-			.AbleOS => Target.dealloc(self.ptr, self.size),
-		}
-		self.vec.deinit()
+		Target.dealloc(self.ptr, self.size)
+		self.allocations.deinit()
 		self.raw.deinit()
 		log.debug("deinit: allocator")
 	}
 	alloc := fn(self: ^Self, $T: type, count: uint): ?^T {
 		if self.allocated + count * @sizeof(T) > self.size {
-			ptr := Target.realloc(self.ptr, self.size, self.size * 2)
-			if ptr == null {
-				log.error("Failed to grow arena");
-				die
-			}
-			self.ptr = @unwrap(ptr)
+			// ! (libc) (compiler) bug: null check broken. unwrapping.
+			self.ptr = @unwrap(Target.realloc(self.ptr, self.size, self.size * 2))
+			self.size = self.size * 2
 		}
 		allocation := self.ptr + self.allocated
 		self.allocations.push(.(allocation, count * @sizeof(T)))
@@ -49,17 +43,16 @@ ArenaAllocator := struct {
 	}
 	realloc := fn(self: ^Self, $T: type, ptr: ^T, count: uint): ?^T {
 		old_size := self._find_size(ptr)
-		if old_size == null {
-			return null
-		}
+		if old_size == null return null
+
 		if old_size > @sizeof(T) * count {
 			if Config.debug_assertions() {
 				log.warn("arena allocator: new_size is smaller than old_size")
 			}
 			return ptr
 		}
-		new_ptr := self.alloc(T, count)
-		Target.memcpy(new_ptr, ptr, old_size)
+		new_ptr := @unwrap(self.alloc(T, count))
+		_ = Target.memcpy_w(new_ptr, ptr, old_size)
 		return new_ptr
 	}
 	dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {
