@@ -3,7 +3,7 @@
  */
 lily := @use("../../lily/lib.hb")
 
-main := fn(argc: int, argv: [][]u8): u8 {
+main := fn(): u8 {
 	allocator := lily.alloc.ArenaAllocator.new()
 	defer allocator.deinit()
 	b := allocator.alloc(u8, 100)
