@@ -24,9 +24,13 @@ ArenaAllocator := struct {
 		log.debug("deinit: allocator")
 	}
 	alloc := fn(self: ^Self, $T: type, count: uint): ?^T {
-		if count * @sizeof(T) + self.allocated > self.size {
-			log.error("You allocated more memory on the arena than the arena had.");
-			die
+		if self.allocated + count * @sizeof(T) > self.size {
+			ptr := Target.realloc(self.ptr, self.size, self.size * 2)
+			if ptr == null {
+				log.error("Failed to grow arena");
+				die
+			}
+			self.ptr = @unwrap(ptr)
 		}
 		allocation := self.ptr + self.allocated
 		self.allocated = self.allocated + count * @sizeof(T)
