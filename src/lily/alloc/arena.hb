@@ -52,7 +52,7 @@ ArenaAllocator := struct {
 			return ptr
 		}
 		new_ptr := @unwrap(self.alloc(T, count))
-		_ = Target.memcpy_w(new_ptr, ptr, old_size)
+		_ = Target.memcpy(new_ptr, ptr, old_size)
 		return new_ptr
 	}
 	dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {
