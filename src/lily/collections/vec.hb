@@ -32,10 +32,10 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 	push := fn(self: ^Self, value: T): void {
 		if self.slice.len == self.cap {
 			if self.cap == 0 {
-				self.cap = 1
 				// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
 				new_alloc := @unwrap(self.allocator.alloc(T, self.cap))
 				self.slice.ptr = new_alloc
+				self.cap = 1
 			} else {
 				self.cap *= 2
 				// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
@@ -43,8 +43,8 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 				self.slice.ptr = new_alloc
 			}
 		}
-		self.slice[self.slice.len] = value
-		self.slice.len += 1
+		// self.slice[self.slice.len] = value
+		// self.slice.len += 1
 	}
 	get := fn(self: ^Self, n: uint): ?T {
 		if n >= self.slice.len return null

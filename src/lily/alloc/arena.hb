@@ -33,7 +33,9 @@ ArenaAllocator := struct {
 			self.size = self.size * 2
 		}
 		allocation := self.ptr + self.allocated
+
 		self.allocations.push(.(allocation, count * @sizeof(T)))
+
 		self.allocated = self.allocated + count * @sizeof(T)
 		log.debug("allocated")
 		return @bitcast(allocation)
