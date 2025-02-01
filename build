@@ -9,8 +9,8 @@ readonly TEST_DIR="$SRC_DIR/test"
 readonly BUILD_PATH="$SCRIPT_DIR/target"
 readonly CHECKSUM_FILE="$BUILD_PATH/checksum"
 
-hbc_flags="--backend-flags=opt_level=speed"
-linker="" target="default" run=0 test="none" dump_asm=0
+hbc_flags="--backend-flags=opt_level=none,regalloc_checker=true,enable_verifier=true,use_colocated_libcalls=true,enable_pcc=true,enable_llvm_abi_extensions=true,preserve_frame_pointers=true"
+linker="" target="default" run=0 test="none" dump_asm=0 debug=1
 
 die() { error "$1" && exit 1; }
 error() { printf "\033[31mERROR\033[0m: %s\n" "$1" >&2; }
@@ -35,7 +35,7 @@ check_changes() {
     [ -r "$CHECKSUM_FILE" ] && previous_checksum=$(cat "$CHECKSUM_FILE")
     current_checksum=$( (
         find "$SRC_DIR" -type f -exec md5sum {} + | LC_ALL=C sort
-        printf "%s\n%s" "$linker" "$target"
+        printf "%s%s%s" "$linker" "$target" "$hbc_flags"
     ) | md5sum)
     echo "$current_checksum" >"$CHECKSUM_FILE"
     [ "$previous_checksum" != "$current_checksum" ]
@@ -45,6 +45,7 @@ show_help() {
     cat <<EOF
 Usage: $0 [options]
     -r, --run        run the output binary
+    -n, --no-debug   disable debug mode
     -a, --dump-asm   dump assembly to stdout
     -l, --linker     specify linker (default: auto-detect)
     -t, --target     target triple/alias (<default>, libc, ableos, hbvm)
@@ -65,6 +66,7 @@ parse_args() {
             exit
             ;;
         -r | --run) run=1 ;;
+        -n | --no-debug) debug=0 hbc_flags="--backend-flags=opt_level=speed,enable_verifier=false,regalloc_checker=false,enable_alias_analysis=true,use_colocated_libcalls=true,enable_llvm_abi_extensions=true" ;;
         -a | --dump-asm) dump_asm=1 ;;
         -t | --target)
             [ -z "${2:-}" ] && die "'--target' requires a non-empty option argument"
@@ -186,6 +188,9 @@ run_test() {
         error "$name: compilation failed (exit: $(pretty_exitcode "$rc")): $(cat "$BUILD_PATH/test/$name.o")"
         return 1
     }
+    [ $debug -eq 0 ] && {
+        strip --strip-all --strip-debug "$BUILD_PATH/$target/lily.o"
+    }
     $linker "$BUILD_PATH/test/$name.o" -o "$BUILD_PATH/test/$name" || die "linking failed:"
 
     if [ -n "$timeout_val" ]; then
@@ -264,6 +269,9 @@ do_build() {
             [ "$target" != "default" ] && hbc_flags="$hbc_flags --target=$target"
             # shellcheck disable=SC2086
             hbc "$SRC_DIR/main.hb" $hbc_flags >"$BUILD_PATH/$target/lily.o" || build_failed
+            [ $debug -eq 0 ] && {
+                strip --strip-all --strip-debug "$BUILD_PATH/$target/lily.o"
+            }
             $linker "$BUILD_PATH/$target/lily.o" -o "$BUILD_PATH/$target/lily"
         fi
     fi
@@ -280,12 +288,14 @@ main() {
     none) do_build ;;
     lang | lily | all)
         [ "$test" = "all" ] && test=""
-        [ $dump_asm -eq 1 ] && die "--dump-asm incompatible with tests (for now)"
-        [ "$target" != "default" ] && die "--target incompatible with tests"
+        [ $dump_asm -eq 1 ] && die "'--dump-asm' incompatible with tests (for now)"
+        [ "$target" != "default" ] && die "'--target' incompatible with tests"
+        [ $run -eq 1 ] && warn "'--run' is redundant with tests"
         do_tests
         ;;
     *) die "unknown test: $test" ;;
     esac
+    return 0
 }
 
 main "$@"
