@@ -183,7 +183,7 @@ EOF
 }
 
 run_test() {
-    file=$1 name=$2 output="" rc=0
+    file=$1 name=$2 output="" rc=0 failed=0
     parse_test "$file"
     hbc "$file" $hbc_flags >"$BUILD_PATH/test/$name.o" || return 1
     $linker "$BUILD_PATH/test/$name.o" -o "$BUILD_PATH/test/$name" || return 1
@@ -193,7 +193,7 @@ run_test() {
         rc=$?
         [ $rc -eq 124 ] && {
             error "timeout"
-            return 1
+            failed=1
         }
     else
         output=$("$BUILD_PATH/test/$name" $args_input 2>&1)
@@ -202,14 +202,15 @@ run_test() {
 
     [ "$rc" != "$exit_code" ] && {
         error "exit code $rc != $exit_code"
-        return 1
+        failed=1
     }
     [ -n "$stdout_expected" ] && [ "$output" != "$stdout_expected" ] && {
         error "output mismatch
 expected: $stdout_expected
 got:      $output"
-        return 1
+        failed=1
     }
+    return $failed
 }
 
 # todo: this spawns every test all at once. consider limiting to $(nproc) tests at once.
@@ -217,15 +218,19 @@ do_tests() {
     detect_linker
     mkdir -p "$BUILD_PATH/test" || die "failed to create test dir"
 
-    find "${TEST_DIR}/${test#all}" -type f | while IFS= read -r file; do
+    tmpfile=$(mktemp) || die "Failed to create temporary file"
+    find "${TEST_DIR}/${test#all}" -type f >"$tmpfile" || die "Find command failed"
+
+    while IFS= read -r file; do
         [ -f "$file" ] || continue
         test_name=$(basename "$file" .hb)
         log "Testing $test_name"
         (run_test "$file" "$test_name") &
-    done
-    wait
-}
+    done <"$tmpfile"
 
+    wait
+    rm -r "$tmpfile" "$BUILD_PATH/test"
+}
 do_build() {
     mkdir -p "$BUILD_PATH/$target" || die "failed to create $BUILD_PATH/$target"
     [ -w "$BUILD_PATH/$target" ] || die "no write permission"
