@@ -1,4 +1,4 @@
-.{Config, Target, Type, log, collections: .{Vec}} := @use("../lib.hb");
+.{Config, Target, Type, log, collections: .{Vec}, alloc: .{RawAllocator}} := @use("../lib.hb");
 
 Allocation := struct {
 	ptr: ^u8,
@@ -9,18 +9,24 @@ ArenaAllocator := struct {
 	ptr: ^u8,
 	size: uint,
 	allocated: uint,
+	allocations: Vec(Allocation, RawAllocator),
+	raw: RawAllocator,
 
 	new := fn(): Self {
 		size := Target.page_size()
 		// todo(?): spec should accept ?Self as return type
 		ptr := @unwrap(Target.alloc_zeroed(size))
-		return .(ptr, size, 0)
+		raw := RawAllocator.new()
+		vec := Vec(Allocation, RawAllocator).new(&raw)
+		return .(ptr, size, 0, vec, raw)
 	}
 	deinit := fn(self: ^Self): void {
 		match Target.current() {
 			.LibC => Target.dealloc(self.ptr),
 			.AbleOS => Target.dealloc(self.ptr, self.size),
 		}
+		self.vec.deinit()
+		self.raw.deinit()
 		log.debug("deinit: allocator")
 	}
 	alloc := fn(self: ^Self, $T: type, count: uint): ?^T {
@@ -33,6 +39,7 @@ ArenaAllocator := struct {
 			self.ptr = @unwrap(ptr)
 		}
 		allocation := self.ptr + self.allocated
+		self.allocations.push(.(allocation, count * @sizeof(T)))
 		self.allocated = self.allocated + count * @sizeof(T)
 		log.debug("allocated")
 		return @bitcast(allocation)
@@ -41,21 +48,30 @@ ArenaAllocator := struct {
 		return self.alloc(T, count)
 	}
 	realloc := fn(self: ^Self, $T: type, ptr: ^T, count: uint): ?^T {
-		log.error("Don't call realloc on the arena allocator");
-		die
+		old_size := self._find_size(ptr)
+		if old_size == null {
+			return null
+		}
+		if old_size > @sizeof(T) * count {
+			if Config.debug_assertions() {
+				log.warn("arena allocator: new_size is smaller than old_size")
+			}
+			return ptr
+		}
+		new_ptr := self.alloc(T, count)
+		Target.memcpy(new_ptr, ptr, old_size)
+		return new_ptr
 	}
 	dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {
 		log.debug("freed")
 	}
-	_find_and_remove := fn(self: ^Self, ptr: ^u8): ?Allocation {
+
+	_find_size := fn(self: ^Self, ptr: ^u8): ?uint {
 		i := 0
 		loop if i == self.allocations.len() break else {
 			defer i += 1
 			alloced := self.allocations.get_unchecked(i)
-			if alloced.ptr == ptr {
-				_ = self.allocations.swap_remove(i)
-				return alloced
-			}
+			return alloced.len
 		}
 		return null
 	}
