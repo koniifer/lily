@@ -43,8 +43,8 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 				self.slice.ptr = new_alloc
 			}
 		}
-		// self.slice[self.slice.len] = value
-		// self.slice.len += 1
+		self.slice[self.slice.len] = value
+		self.slice.len += 1
 	}
 	get := fn(self: ^Self, n: uint): ?T {
 		if n >= self.slice.len return null
