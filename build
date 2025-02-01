@@ -14,8 +14,8 @@ linker="" target="default" run=0 test="none" dump_asm=0
 
 die() { error "$1" && exit 1; }
 error() { printf "\033[31mERROR\033[0m: %s\n" "$1" >&2; }
-log() { printf "\033[32mINFO\033[0m: %s\n" "$1" >&2; }
-warn() { printf "\033[33mWARN\033[0m: %s\n" "$1" >&2; }
+log() { printf "\033[32mINFO\033[0m: %s\n" "$1"; }
+warn() { printf "\033[33mWARN\033[0m: %s\n" "$1"; }
 
 check_hbc() {
     command -v hbc >/dev/null 2>&1 && return 0
@@ -212,6 +212,7 @@ expected: $stdout_expected
 got:      $output"
         failed=1
     }
+    [ $failed -eq 0 ] && log "$test_name completed successfully"
     return $failed
 }
 
