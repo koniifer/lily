@@ -72,13 +72,7 @@ parse_args() {
             shift
             ;;
         -u | --test)
-            if [ -z "${2:-}" ]; then
-                test="all"
-            else
-                [ "$2" = "none" ] && warn "'--test none' is redundant"
-                test=$2
-                shift
-            fi
+            test="all"
             ;;
         --test=?*)
             if [ "${1#*=}" = "none" ]; then warn "'--test=none' is redundant"; fi
@@ -189,34 +183,47 @@ run_test() {
     rc=$?
     [ $rc -ne 0 ] && {
         # todo: quiet mode to hide compilation errors.
-        error "$name: compilation failed: $(cat "$BUILD_PATH/test/$name.o")"
+        error "$name: compilation failed (exit: $(pretty_exitcode "$rc")): $(cat "$BUILD_PATH/test/$name.o")"
         return 1
     }
     $linker "$BUILD_PATH/test/$name.o" -o "$BUILD_PATH/test/$name" || die "linking failed:"
 
     if [ -n "$timeout_val" ]; then
+        # shellcheck disable=SC2086
         output=$(timeout "$timeout_val" "$BUILD_PATH/test/$name" $args_input 2>&1)
         rc=$?
         [ $rc -eq 124 ] && {
-            error "timeout"
+            error "$name: timeout"
             failed=1
         }
     else
+        # shellcheck disable=SC2086
         output=$("$BUILD_PATH/test/$name" $args_input 2>&1)
         rc=$?
     fi
 
     [ "$rc" != "$exit_code" ] && {
-        error "exit code $rc != $exit_code"
+        error "$name: exit code $(pretty_exitcode "$rc") != $exit_code"
         failed=1
     }
     [ -n "$stdout_expected" ] && [ "$output" != "$stdout_expected" ] && {
-        error "output mismatch
+        error "$name: output mismatch
 expected: $stdout_expected
 got:      $output"
         failed=1
     }
     return $failed
+}
+
+pretty_exitcode() {
+    exit_code=$1
+    signal=$((exit_code - 128))
+
+    if [ $signal -gt 0 ] && [ $signal -lt 32 ]; then
+        echo "$exit_code (SIG$(kill -l $signal 2>/dev/null || echo "???"))"
+    else
+        echo "$exit_code"
+    fi
 }
 
 # todo: this spawns every test all at once. consider limiting to $(nproc) tests at once.
@@ -249,10 +256,12 @@ do_build() {
                 hbc_flags="$hbc_flags --dump-asm"
                 out="/dev/stdout"
             }
+            # shellcheck disable=SC2086
             hbc "$SRC_DIR/main.hb" $hbc_flags --target="$target" >"$out" || build_failed
         else
             [ -z "$linker" ] && detect_linker
             [ "$target" != "default" ] && hbc_flags="$hbc_flags --target=$target"
+            # shellcheck disable=SC2086
             hbc "$SRC_DIR/main.hb" $hbc_flags >"$BUILD_PATH/$target/lily.o" || build_failed
             $linker "$BUILD_PATH/$target/lily.o" -o "$BUILD_PATH/$target/lily"
         fi
@@ -270,7 +279,7 @@ main() {
     none) do_build ;;
     lang | lily | all)
         [ "$test" = "all" ] && test=""
-        [ $dump_asm -eq 1 ] && die "--dump-asm incompatible with tests"
+        [ $dump_asm -eq 1 ] && die "--dump-asm incompatible with tests (for now)"
         [ "$target" != "default" ] && die "--target incompatible with tests"
         do_tests
         ;;

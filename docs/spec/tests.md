@@ -2,7 +2,7 @@
 tests are written in [src/test](../../src/test/)
 1. tests that test the language will be in the [lang](../../src/test/lang) subdirectory 
 2. tests that test lily will be in the [lily](../../src/test/lily) subdirectory 
-3. all tests should return a `u8` as a status code.
+3. all tests should return `u8`, `void`, or `bool` as a status code.
     > follow standard status code practices for value.<br>
     > `0` for success, `1` for error, etc
 4. all tests should contain the test specification at the top of the file
@@ -13,6 +13,8 @@ tests are written in [src/test](../../src/test/)
     - `args` are given to the application executable
     - `exit` is the exit status of the program (return code)
 5. if test compilation fails, the test will be considered failed
+6. tests for lily should try to limit the number of unrelated structures/functions tested.
+7. tests for lang should be headless (not rely on lily at all)
 
 the following are all of the (currently) supported test arguments:
 ```rust
