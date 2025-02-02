@@ -1,4 +1,4 @@
-.{memmove, Type, log, alloc, quicksort, compare, iter} := @use("../lib.hb");
+.{memmove, Type, log, panic, alloc, quicksort, compare, iter} := @use("../lib.hb");
 
 Vec := fn($T: type, $Allocator: type): type return struct {
 	slice: []T,
@@ -6,8 +6,11 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 	cap: uint = 0,
 	$new := fn(allocator: ^Allocator): Self return .{slice: Type([]T).uninit(), allocator}
 	$with_capacity := fn(allocator: ^Allocator, cap: uint): Self {
-		// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
-		new_alloc := @unwrap(allocator.alloc(T, cap))
+		new_alloc := allocator.alloc(T, cap)
+		if new_alloc == null {
+			// todo: handle this
+			return
+		}
 		return .{slice: new_alloc[0..0], allocator, cap}
 	}
 	deinit := fn(self: ^Self): void {
@@ -24,21 +27,30 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 	// todo: maybe make this exponential instead
 	reserve := fn(self: ^Self, n: uint): void {
 		if self.len() + n <= self.cap return;
-		// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
-		new_alloc := @unwrap(self.allocator.realloc(T, self.slice.ptr, self.cap + n))
+		new_alloc := self.allocator.realloc(T, self.slice.ptr, self.cap + n)
+		if new_alloc == null {
+			// todo: handle this
+			return
+		}
 		self.cap += n
 		self.slice.ptr = new_alloc
 	}
 	push := fn(self: ^Self, value: T): void {
 		if self.slice.len == self.cap {
 			if self.cap == 0 {
-				// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
-				new_alloc := @unwrap(self.allocator.alloc(T, 1))
+				new_alloc := self.allocator.alloc(T, 1)
+				if new_alloc == null {
+					// todo: handle this
+					return
+				}
 				self.slice.ptr = new_alloc.ptr
 				self.cap = new_alloc.len
 			} else {
-				// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
-				new_alloc := @unwrap(self.allocator.realloc(T, self.slice.ptr, self.cap * 2))
+				new_alloc := self.allocator.realloc(T, self.slice.ptr, self.cap * 2)
+				if new_alloc == null {
+					// todo: handle this
+					return
+				}
 				self.slice.ptr = new_alloc.ptr
 				self.cap = new_alloc.len
 			}

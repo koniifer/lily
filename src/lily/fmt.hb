@@ -2,7 +2,6 @@
 
 $FP_TOLERANCE := 0.00000001
 
-// ! (libc) (compiler) bug: caused by: `lily.log.print(100)`
 fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	prefix_len := 0
 	if TypeOf(v).is_signed_int() & v < 0 {

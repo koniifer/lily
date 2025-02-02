@@ -32,6 +32,7 @@ ArenaAllocator := struct {
 	raw: RawAllocator,
 
 	$new := fn(): Self {
+		// ! THIS BREAKS STUFF!!! RETURNING LOCAL STACK POINTER IDIOT!!!
 		raw := RawAllocator.new()
 		blocks := Vec([]u8, RawAllocator).new(&raw)
 		return .(blocks, Type([]u8).uninit(), 0, 0, 0, raw)
@@ -59,9 +60,9 @@ ArenaAllocator := struct {
 		new_space := aligned + size
 		if new_space > self.current_block.len {
 			new_size := alloc_size(size)
-			// ! (libc) (compiler) bug: null check broken. unwrapping.
-			new_ptr := @unwrap(Target.alloc_zeroed(new_size))
-			new_block := new_ptr[0..new_size]
+			new_ptr := Target.alloc_zeroed(new_size)
+			if new_ptr == null return null
+			new_block := @as(^u8, new_ptr)[0..new_size]
 			self.blocks.push(new_block)
 			self.current_block = new_block
 			self.offset = 0
@@ -78,8 +79,7 @@ ArenaAllocator := struct {
 	realloc := fn(self: ^Self, $T: type, ptr: ^T, new_count: uint): ?[]T {
 		r0 := @as(^u8, @bitcast(ptr)) != self.current_block.ptr + self.last_alloc_start
 		r1 := self.last_alloc_start + self.last_alloc_size != self.offset
-		// ! (libc) (compiler) bug: checking r0 | r1 here gives "not yet implemented: bool"
-		if Target.current() != .LibC if r0 | r1 {
+		if r0 | r1 {
 			if Config.debug_assertions() {
 				log.error("arena: realloc only supports last allocation")
 			}
@@ -99,9 +99,9 @@ ArenaAllocator := struct {
 			return ptr[0..new_count]
 		}
 		new_size := alloc_size(size)
-		// ! (libc) (compiler) bug: null check broken. unwrapping.
-		new_ptr := @unwrap(Target.alloc_zeroed(new_size))
-		new_block := new_ptr[0..new_size]
+		new_ptr := Target.alloc_zeroed(new_size)
+		if new_ptr == null return null
+		new_block := @as(^u8, new_ptr)[0..new_size]
 		Target.memcopy(new_ptr, @bitcast(ptr), self.last_alloc_size)
 		self.blocks.push(new_block)
 		self.current_block = new_block

@@ -11,7 +11,6 @@ opaque2 := fn(): ^u8 {
 }
 
 main := fn(): u8 {
-	// ! (libc) (compiler) bug: ptr comparison causes not yet implemented: bool
 	if opaque() != opaque2() {
 		r := opaque() ^ opaque2()
 		// if you get 2 then the world is ending

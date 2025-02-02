@@ -40,6 +40,7 @@ HashMap := fn($Key: type, $Value: type, $Hasher: type, $Allocator: type): type r
 	new := fn(allocator: ^Allocator): Self {
 		hasher := Hasher.default()
 		buckets := Buckets(Key, Value, Allocator).with_capacity(allocator, 16)
+		// ! (possibly solved)
 		// ! (compiler) bug: have to use for-loop here rather than using buckets.len(), otherwise we loop infinitely
 		i := 0
 		loop if i == 16 break else {

@@ -21,8 +21,9 @@ RawAllocator := struct {
 			return @as(^T, @bitcast(self.slice.ptr))[0..count]
 		}
 
-		new_ptr := @unwrap(Target.realloc(self.slice.ptr, self.slice.len, size));
-		self.slice = new_ptr[0..size];
+		new_ptr := Target.realloc(self.slice.ptr, self.slice.len, size);
+		if new_ptr == null return null
+		self.slice = @as(^u8, new_ptr)[0..size];
 		log.debug("reallocated: raw");
 		return @as(^T, @bitcast(new_ptr))[0..count]
 	}
@@ -42,16 +43,19 @@ RawAllocator := struct {
 			return @as(^T, @bitcast(self.slice.ptr))[0..count]
 		}
 
+		ptr := Type(?^u8).uninit()
+		if zeroed {
+			ptr = Target.alloc_zeroed(size)
+		} else {
+			ptr = Target.alloc(size)
+		}
+		if ptr == null return null
+
 		if self.slice.len > 0 {
 			Target.dealloc(self.slice.ptr, self.slice.len)
 		}
-		ptr := Type(^u8).uninit()
-		if zeroed {
-			ptr = @unwrap(Target.alloc_zeroed(size))
-		} else {
-			ptr = @unwrap(Target.alloc(size))
-		}
-		self.slice = ptr[0..size]
+
+		self.slice = @as(^u8, ptr)[0..size]
 		log.debug("allocated: raw")
 		return @as(^T, @bitcast(ptr))[0..count]
 	}

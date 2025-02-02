@@ -84,7 +84,7 @@ main := fn(argc: uint, argv: []^void): uint {
 	defer allocator.deinit()
 	vec := lily.collections.Vec(uint, Allocator).new(&allocator)
 	i := 0
-	// ! (libc) (compiler) bug: i > 512 causes SIGSEGV
+	// ! (skill issue) bug: i > 512 causes SIGSEGV
 	loop if i == 1024 break else {
 		defer i += 1
 		vec.push(i)

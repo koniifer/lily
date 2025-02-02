@@ -12,7 +12,6 @@ $transparent := fn(): ?^u8 {
 
 main := fn(): u8 {
 	result := opaque()
-	// ! (libc) (compiler) bug: `result != null` causes not yet implemented: bool
 	if result != null {
 		return 1
 	}
