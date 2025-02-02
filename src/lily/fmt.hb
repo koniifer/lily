@@ -1,4 +1,4 @@
-.{target, Type, TypeOf, string, memcpy, panic} := @use("lib.hb")
+.{target, Type, TypeOf, string, memcopy, panic} := @use("lib.hb")
 
 $FP_TOLERANCE := 0.00000001
 
@@ -13,13 +13,13 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	}
 
 	if radix == 16 {
-		memcpy(buf.ptr + prefix_len, "0x".ptr, 2)
+		memcopy(buf.ptr + prefix_len, "0x".ptr, 2)
 		prefix_len += 2
 	} else if radix == 2 {
-		memcpy(buf.ptr + prefix_len, "0b".ptr, 2)
+		memcopy(buf.ptr + prefix_len, "0b".ptr, 2)
 		prefix_len += 2
 	} else if radix == 8 {
-		memcpy(buf.ptr + prefix_len, "0o".ptr, 2)
+		memcopy(buf.ptr + prefix_len, "0o".ptr, 2)
 		prefix_len += 2
 	}
 
@@ -62,13 +62,13 @@ fmt_float := fn(buf: []u8, v: @Any(), precision: uint, radix: int): uint {
 	}
 
 	if radix == 16 {
-		memcpy(buf.ptr + prefix_len, "0x".ptr, 2)
+		memcopy(buf.ptr + prefix_len, "0x".ptr, 2)
 		prefix_len += 2
 	} else if radix == 2 {
-		memcpy(buf.ptr + prefix_len, "0b".ptr, 2)
+		memcopy(buf.ptr + prefix_len, "0b".ptr, 2)
 		prefix_len += 2
 	} else if radix == 8 {
-		memcpy(buf.ptr + prefix_len, "0o".ptr, 2)
+		memcopy(buf.ptr + prefix_len, "0o".ptr, 2)
 		prefix_len += 2
 	}
 
@@ -111,10 +111,10 @@ fmt_float := fn(buf: []u8, v: @Any(), precision: uint, radix: int): uint {
 
 fmt_bool := fn(buf: []u8, v: bool): uint {
 	if v {
-		memcpy(buf.ptr, "true".ptr, 4)
+		memcopy(buf.ptr, "true".ptr, 4)
 		return 4
 	} else {
-		memcpy(buf.ptr, "false".ptr, 5)
+		memcopy(buf.ptr, "false".ptr, 5)
 		return 5
 	}
 }
@@ -124,17 +124,17 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 	i := 0
 	len := 0
 	if T.kind() == .Struct {
-		memcpy(buf.ptr + len, T.name().ptr, T.name().len)
+		memcopy(buf.ptr + len, T.name().ptr, T.name().len)
 		len += T.name().len
-		memcpy(buf.ptr + len, ".(".ptr, 2)
+		memcopy(buf.ptr + len, ".(".ptr, 2)
 		len += 2
 	} else if T.kind() == .Slice | T.kind() == .Array {
-		memcpy(buf.ptr + len, T.Child().name().ptr, T.Child().name().len)
+		memcopy(buf.ptr + len, T.Child().name().ptr, T.Child().name().len)
 		len += T.Child().name().len
-		memcpy(buf.ptr + len, ".[".ptr, 2)
+		memcopy(buf.ptr + len, ".[".ptr, 2)
 		len += 2
 	} else if T.kind() == .Tuple {
-		memcpy(buf.ptr + len, ".(".ptr, 2)
+		memcopy(buf.ptr + len, ".(".ptr, 2)
 		len += 2
 	}
 
@@ -143,7 +143,7 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 			len += format(buf[len..], v[i])
 			i += 1
 			if i < v.len {
-				memcpy(buf.ptr + len, ", ".ptr, 2)
+				memcopy(buf.ptr + len, ", ".ptr, 2)
 				len += 2
 			}
 		}
@@ -152,7 +152,7 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 			len += format(buf[len..], v[i])
 			i += 1
 			if i < T.len() {
-				memcpy(buf.ptr + len, ", ".ptr, 2)
+				memcopy(buf.ptr + len, ", ".ptr, 2)
 				len += 2
 			}
 		}
@@ -171,8 +171,8 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 fmt_optional := fn(buf: []u8, v: @Any()): uint {
 	if v != null return format(buf, @as(@ChildOf(@TypeOf(v)), v))
 
-	memcpy(buf.ptr, @nameof(@TypeOf(v)).ptr, @nameof(@TypeOf(v)).len)
-	memcpy(buf.ptr + @nameof(@TypeOf(v)).len, ".null".ptr, 5)
+	memcopy(buf.ptr, @nameof(@TypeOf(v)).ptr, @nameof(@TypeOf(v)).len)
+	memcopy(buf.ptr + @nameof(@TypeOf(v)).len, ".null".ptr, 5)
 	return @nameof(@TypeOf(v)).len + 5
 }
 
@@ -180,11 +180,11 @@ fmt_optional := fn(buf: []u8, v: @Any()): uint {
 fmt_enum := fn(buf: []u8, v: @Any()): uint {
 	T := @TypeOf(v)
 	len := @nameof(T).len;
-	memcpy(buf.ptr, @nameof(T).ptr, len)
-	memcpy(buf.ptr + len, ".(".ptr, 2)
+	memcopy(buf.ptr, @nameof(T).ptr, len)
+	memcopy(buf.ptr + len, ".(".ptr, 2)
 	len += 2
 	len += fmt_int(buf[len..], @as(Type(T).USize(), @bitcast(v)), 10);
-	memcpy(buf.ptr + len, ")".ptr, 1)
+	memcopy(buf.ptr + len, ")".ptr, 1)
 	return len + 1
 }
 
@@ -202,7 +202,7 @@ format := fn(buf: []u8, v: @Any()): uint {
 		.Slice => {
 			if T.This() == []u8 {
 				*buf.ptr = '"'
-				memcpy(buf.ptr + 1, v.ptr, v.len);
+				memcopy(buf.ptr + 1, v.ptr, v.len);
 				*(buf.ptr + 1 + v.len) = '"'
 				return v.len + 2
 			}

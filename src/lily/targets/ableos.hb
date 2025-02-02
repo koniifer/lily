@@ -30,7 +30,7 @@ $dealloc := fn(ptr: ^u8, size: uint): void {
 }
 
 CopyMsg := packed struct {a: u8, count: uint, src: ^u8, dest: ^u8}
-$memcpy := fn(dest: ^u8, src: ^u8, size: uint): void {
+$memcopy := fn(dest: ^u8, src: ^u8, size: uint): void {
 	return @eca(3, 2, &CopyMsg.(4, size, src, dest), @sizeof(CopyMsg))
 }
 

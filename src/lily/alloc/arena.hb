@@ -101,7 +101,7 @@ ArenaAllocator := struct {
 		// ! (libc) (compiler) bug: null check broken. unwrapping.
 		new_ptr := @unwrap(Target.alloc_zeroed(new_size))
 		new_block := new_ptr[0..new_size]
-		Target.memcpy(new_ptr, @bitcast(ptr), self.last_alloc_size)
+		Target.memcopy(new_ptr, @bitcast(ptr), self.last_alloc_size)
 		self.blocks.push(new_block)
 		self.current_block = new_block
 		self.offset = size

@@ -20,7 +20,7 @@ Target := enum {
 		}
 	}
 	/* todo: reorganise these */;
-	.{alloc, alloc_zeroed, realloc, dealloc, memmove, memcpy, memset, exit, getrandom, page_size, calculate_pages, fork} := Self.Lib(Self.current());
+	.{alloc, alloc_zeroed, realloc, dealloc, memmove, memcopy, memset, exit, getrandom, page_size, calculate_pages, fork} := Self.Lib(Self.current());
 	.{printf_str} := Self.Lib(.LibC);
 	.{LogMsg} := Self.Lib(.AbleOS)
 }

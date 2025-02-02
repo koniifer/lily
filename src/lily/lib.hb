@@ -44,15 +44,15 @@ $panic := fn(message: ?[]u8): never {
 	exit(1)
 }
 
-// ! exit, memcpy, memmove, and memset are all temporary wrapper functions
+// ! exit, memcopy, memmove, and memset are all temporary wrapper functions
 $exit := fn(code: int): never {
 	Target.exit(code)
 	die
 }
 
-$memcpy := fn(dest: @Any(), src: @Any(), size: uint): void {
-	if TypeOf(dest).kind() != .Pointer | TypeOf(src).kind() != .Pointer @error("memcpy requires a pointer")
-	Target.memcpy(@bitcast(dest), @bitcast(src), size)
+$memcopy := fn(dest: @Any(), src: @Any(), size: uint): void {
+	if TypeOf(dest).kind() != .Pointer | TypeOf(src).kind() != .Pointer @error("memcopy requires a pointer")
+	Target.memcopy(@bitcast(dest), @bitcast(src), size)
 }
 
 $memmove := fn(dest: @Any(), src: @Any(), size: uint): void {

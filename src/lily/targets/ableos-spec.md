@@ -30,7 +30,7 @@ realloc: `ecall 3(buf), 2(mem), 7(realloc), page_count:u64, page_count_new:u64, 
 dealloc: `ecall 3(buf), 2(mem), 1(dealloc), page_count:u64, ptr:*const u8`<br>
 > releases an existing contiguous chunk of memory allocated via `alloc`, `alloc_zeroed`, or `realloc`. it is undefined behaviour to use size zero or a `null` pointer.
 
-memcpy: `ecall 3(buf), 2(mem), 4(memcopy), size:u64, src:*const u8, dest:*const u8`<br>
+memcopy: `ecall 3(buf), 2(mem), 4(memcopy), size:u64, src:*const u8, dest:*const u8`<br>
 > copies `size` of `src` into `dest`. `src` and `dest` must not be overlapping. it is undefined behaviour to use size zero or a `null` pointer.
 
 memset: `ecall 3(buf), 2(mem), 5(memset), count:u64, size:u64, src:*const u8, dest:*mut u8`<br>
