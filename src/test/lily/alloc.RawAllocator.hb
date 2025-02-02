@@ -13,9 +13,6 @@ main := fn(): uint {
 	if c == null return 1
 	d := allocator.realloc(u8, c.ptr, 100)
 	if d == null return 1
-	// ! d.ptr != c.ptr, but d.ptr ^ c.ptr == 0... nice.
-	if d.ptr != c.ptr return @as(uint, @bitcast(d.ptr ^ c.ptr))
-	// ! 5 specifically causes a compiler error
-	// ! set this to 1 after it gets fixed to demonstrate bug above
-	return 5
+	if d.ptr != c.ptr return 1
+	return 0
 }

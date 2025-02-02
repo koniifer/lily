@@ -5,8 +5,7 @@ $FP_TOLERANCE := 0.00000001
 // ! (libc) (compiler) bug: caused by: `lily.log.print(100)`
 fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	prefix_len := 0
-	// ! (compiler) bug: excuse me wtf? why are `v > 0` and `v < 0` flipped?
-	if TypeOf(v).is_signed_int() & v > 0 {
+	if TypeOf(v).is_signed_int() & v < 0 {
 		v = -v
 		buf[0] = '-'
 		prefix_len += 1

@@ -3,7 +3,7 @@ set -u
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 readonly SCRIPT_DIR
-readonly HBC_COMMIT="27811d2e"
+readonly HBC_COMMIT="da3dabaf"
 readonly HBC_BRANCH="memory-rework"
 readonly SRC_DIR="$SCRIPT_DIR/src"
 readonly TEST_DIR="$SRC_DIR/test"
@@ -18,14 +18,14 @@ error() { printf "\033[31mERROR\033[0m: %s\n" "$1" >&2; }
 log() { printf "\033[32mINFO\033[0m: %s\n" "$1"; }
 warn() { printf "\033[33mWARN\033[0m: %s\n" "$1"; }
 
+# ! for now, ignore this.
 check_hbc() {
-    # ! for now, ignore this.
-    # command -v hbc >/dev/null 2>&1 && return 0
-    # log "hblang compiler not found in \$PATH"
-    # command -v cargo >/dev/null 2>&1 || die "missing both hbc and cargo"
+    command -v hbc >/dev/null 2>&1 && return 0
+    log "hblang compiler not found in \$PATH"
+    command -v cargo >/dev/null 2>&1 || die "missing both hbc and cargo"
 
-    # cargo_ver=$(cargo install --list | awk '/holey-bytes/ {if(match($0,/[0-9a-f]+/)) print substr($0,RSTART,8)}')
-    # [ "$cargo_ver" = "$HBC_COMMIT" ] && return 0
+    cargo_ver=$(cargo install --list | awk '/holey-bytes/ {if(match($0,/[0-9a-f]+/)) print substr($0,RSTART,8)}')
+    [ "$cargo_ver" = "$HBC_COMMIT" ] && return 0
 
     log "installing hbc($HBC_BRANCH)@$HBC_COMMIT..."
     cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc --debug --rev "$HBC_COMMIT" --branch "$HBC_BRANCH" >/dev/null 2>&1 ||
@@ -284,7 +284,7 @@ do_build() {
 main() {
     parse_args "$@"
     mkdir -p "$BUILD_PATH" || die "can't create build dir"
-    check_hbc
+    #check_hbc
 
     case $test in
     none) do_build ;;
