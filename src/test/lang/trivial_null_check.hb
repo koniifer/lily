@@ -1,6 +1,6 @@
 /*
  * exit: 0
-*/
+ */
 
 opaque := fn(): ?^u8 {
 	return null

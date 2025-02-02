@@ -1,7 +1,7 @@
 /*
  * exit: 10
  * timeout: 1s
-*/
+ */
 
 // ! (compiler) bug: Vec.new and Vec.pop have to be inline functions, otherwise main loops forever.
 Vec := struct {

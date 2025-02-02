@@ -1,6 +1,6 @@
 /*
  * exit: 0
-*/
+ */
 
 index := fn(buf: @Any()): u8 {
 	b := buf[0]
