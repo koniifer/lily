@@ -10,14 +10,14 @@ Generator := struct {
 		return .(self)
 	}
 }
-
-$add := fn(sum: uint, x: uint): uint {
+// inlining this breaks it :(
+add := fn(sum: uint, x: uint): uint {
 	return sum + x
 }
 
 main := fn(argc: uint, argv: []^void): uint {
-	// sum := Generator.{}.into_iter().take(50).fold(add, 0)
-	// lily.print(sum)
+	sum := Generator.{}.into_iter().take(50).fold(add, 0)
+	lily.print(sum)
 
 	// // ! (libc) (compiler) bug: .collect(T) does not work.
 	// if lily.Target.current() != .LibC {
@@ -79,17 +79,17 @@ main := fn(argc: uint, argv: []^void): uint {
 	// 	lily.print("parent")
 	// }
 
-	Allocator := lily.alloc.ArenaAllocator
-	allocator := Allocator.new()
-	defer allocator.deinit()
-	vec := lily.collections.Vec(uint, Allocator).new(&allocator)
-	i := 0
-	// ! (skill issue) bug: i > 512 causes SIGSEGV
-	loop if i == 1024 break else {
-		defer i += 1
-		vec.push(i)
-	}
-	lily.print(vec.slice.len)
+	// Allocator := lily.alloc.ArenaAllocator
+	// allocator := Allocator.new()
+	// defer allocator.deinit()
+	// vec := lily.collections.Vec(uint, Allocator).new(&allocator)
+	// i := 0
+	// // ! (skill issue) bug: i > 512 causes SIGSEGV
+	// loop if i == 1024 break else {
+	// 	defer i += 1
+	// 	vec.push(i)
+	// }
+	// lily.print(vec.slice.len)
 
 	return 0
 }
