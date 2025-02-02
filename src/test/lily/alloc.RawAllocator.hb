@@ -11,8 +11,8 @@ main := fn(): u8 {
 	if b == null return 1
 	c := allocator.alloc(u8, 100)
 	if c == null return 1
-	d := allocator.realloc(u8, c, 100)
+	d := allocator.realloc(u8, c.ptr, 100)
 	if d == null return 1
-	if d != c return 1
+	if d.ptr != c.ptr return 1
 	return 0
 }

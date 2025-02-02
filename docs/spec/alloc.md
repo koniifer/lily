@@ -13,14 +13,14 @@ Allocator := struct {
     deinit := fn(self: ^Self): void
     /// should return null on failure.
     /// should dealloc any intermediate allocations on failure.
-    alloc := fn(self: ^Self, $T: type, count: uint): ?^T
+    alloc := fn(self: ^Self, $T: type, count: uint): ?[]T
     /// same behaviour as alloc, except:
     /// must be zeroed.
-    alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?^T
+    alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?[]T
     /// same behaviour as alloc, except:
     /// must move data to new allocation,
     /// must ensure the old allocation is freed at some point.
-    realloc := fn(self: ^Self, $T: type, ptr: ^T, new_count: uint): ?^T
+    realloc := fn(self: ^Self, $T: type, ptr: ^T, new_count: uint): ?[]T
     /// must dealloc or schedule the freeing of the given allocation
     dealloc := fn(self: ^Self, $T: type, ptr: ^T): void
 }

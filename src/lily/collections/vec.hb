@@ -34,13 +34,13 @@ Vec := fn($T: type, $Allocator: type): type return struct {
 			if self.cap == 0 {
 				// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
 				new_alloc := @unwrap(self.allocator.alloc(T, 1))
-				self.slice.ptr = new_alloc
-				self.cap = 1
+				self.slice.ptr = new_alloc.ptr
+				self.cap = new_alloc.len
 			} else {
 				// ! (libc) (compiler) bug: null check broken, so unwrapping (unsafe!)
 				new_alloc := @unwrap(self.allocator.realloc(T, self.slice.ptr, self.cap * 2))
-				self.slice.ptr = new_alloc
-				self.cap *= 2
+				self.slice.ptr = new_alloc.ptr
+				self.cap = new_alloc.len
 			}
 		}
 		self.slice[self.slice.len] = value

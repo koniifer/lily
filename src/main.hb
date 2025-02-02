@@ -70,14 +70,26 @@ main := fn(argc: uint, argv: []^void): uint {
 	// lily.print(map.get("asdfasdf!"))
 	// lily.print(map.get("Hello, World!"))
 
-	id := lily.process.fork()
-	lily.print("hello, world")
+	// id := lily.process.fork()
+	// lily.print("hello, world")
 
-	if id == 0 {
-		lily.print("child")
-	} else {
-		lily.print("parent")
+	// if id == 0 {
+	// 	lily.print("child")
+	// } else {
+	// 	lily.print("parent")
+	// }
+
+	Allocator := lily.alloc.ArenaAllocator
+	allocator := Allocator.new()
+	defer allocator.deinit()
+	vec := lily.collections.Vec(uint, Allocator).new(&allocator)
+	i := 0
+	// ! (libc) (compiler) bug: i > 512 causes SIGSEGV
+	loop if i == 1024 break else {
+		defer i += 1
+		vec.push(i)
 	}
+	lily.print(vec.slice.len)
 
 	return 0
 }
