@@ -1,73 +1,116 @@
-.{Config, Target, Type, log, collections: .{Vec}, alloc: .{RawAllocator}} := @use("../lib.hb");
+.{Config, Type, Target, log, collections: .{Vec}, alloc: .{RawAllocator}, math} := @use("../lib.hb");
 
-Allocation := struct {
-	ptr: ^u8,
-	len: uint,
+$next_power_of_two := fn(n: uint): uint {
+	n -= 1
+	n |= n >> 1
+	n |= n >> 2
+	n |= n >> 4
+	n |= n >> 8
+	n |= n >> 16
+	n |= n >> 32
+	return n + 1
+}
+
+$compute_align := fn(size: uint, align: uint): uint {
+	return size + align - 1 & 1 << @sizeof(uint) * 8 - (align - 1)
+}
+
+$fit_pages := fn(size: uint): uint {
+	return Target.calculate_pages(size) * Target.page_size()
+}
+
+$alloc_size := fn(size: uint): uint {
+	return fit_pages(math.max(next_power_of_two(size), 1))
 }
 
 ArenaAllocator := struct {
-	ptr: ^u8,
-	size: uint,
-	allocated: uint,
-	allocations: Vec(Allocation, RawAllocator),
+	blocks: Vec([]u8, RawAllocator),
+	current_block: []u8,
+	offset: uint,
+	last_alloc_start: uint,
+	last_alloc_size: uint,
 	raw: RawAllocator,
 
-	new := fn(): Self {
-		size := Target.page_size()
-		// todo(?): spec should accept ?Self as return type
-		ptr := @unwrap(Target.alloc_zeroed(size))
+	$new := fn(): Self {
 		raw := RawAllocator.new()
-		vec := Vec(Allocation, RawAllocator).new(&raw)
-		return .(ptr, size, 0, vec, raw)
+		blocks := Vec([]u8, RawAllocator).new(&raw)
+		return .(blocks, Type([]u8).uninit(), 0, 0, 0, raw)
 	}
 	deinit := fn(self: ^Self): void {
-		Target.dealloc(self.ptr, self.size)
-		self.allocations.deinit()
-		self.raw.deinit()
-		log.debug("deinit: allocator")
+		loop if self.blocks.len() == 0 break else {
+			block := self.blocks.pop_unchecked()
+			Target.dealloc(block.ptr, block.len)
+		}
+		self.blocks.deinit()
+		self.raw.deinit();
+		self.current_block = Type([]u8).uninit()
+		self.offset = 0
+		self.last_alloc_start = 0
+		self.last_alloc_size = 0
+		log.debug("deinit: arena allocator")
 	}
 	alloc := fn(self: ^Self, $T: type, count: uint): ?^T {
-		if self.allocated + count * @sizeof(T) > self.size {
-			// ! (libc) (compiler) bug: null check broken. unwrapping.
-			self.ptr = @unwrap(Target.realloc(self.ptr, self.size, self.size * 2))
-			self.size = self.size * 2
+		size := @sizeof(T) * count
+		if Config.debug_assertions() & size == 0 {
+			log.error("arena: zero sized allocation")
+			return null
 		}
-		allocation := self.ptr + self.allocated
-
-		self.allocations.push(.(allocation, count * @sizeof(T)))
-
-		self.allocated = self.allocated + count * @sizeof(T)
-		log.debug("allocated")
-		return @bitcast(allocation)
+		aligned := compute_align(self.offset, @alignof(T))
+		new_space := aligned + size
+		if new_space > self.current_block.len {
+			new_size := alloc_size(size)
+			// ! (libc) (compiler) bug: null check broken. unwrapping.
+			new_ptr := @unwrap(Target.alloc_zeroed(new_size))
+			new_block := new_ptr[0..new_size]
+			self.blocks.push(new_block)
+			self.current_block = new_block
+			self.offset = 0
+			aligned = 0
+		}
+		ptr := self.current_block.ptr + aligned
+		self.last_alloc_start = aligned
+		self.last_alloc_size = size
+		self.offset = aligned + size
+		log.debug("arena: allocated")
+		return @bitcast(ptr)
 	}
-	$alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?^T {
-		return self.alloc(T, count)
-	}
-	realloc := fn(self: ^Self, $T: type, ptr: ^T, count: uint): ?^T {
-		old_size := self._find_size(ptr)
-		if old_size == null return null
-
-		if old_size > @sizeof(T) * count {
+	alloc_zeroed := Self.alloc
+	realloc := fn(self: ^Self, $T: type, ptr: ^T, new_count: uint): ?^T {
+		r0 := @as(^u8, @bitcast(ptr)) != self.current_block.ptr + self.last_alloc_start
+		r1 := self.last_alloc_start + self.last_alloc_size != self.offset
+		if r0 | r1 {
 			if Config.debug_assertions() {
-				log.warn("arena allocator: new_size is smaller than old_size")
+				log.error("arena: realloc only supports last allocation")
+			}
+			return null
+		}
+		size := @sizeof(T) * new_count
+		if size <= self.last_alloc_size {
+			if Config.debug_assertions() {
+				log.warn("arena: useless reallocation (new_size <= old_size)")
 			}
 			return ptr
 		}
-		new_ptr := @unwrap(self.alloc(T, count))
-		_ = Target.memcpy(new_ptr, ptr, old_size)
-		return new_ptr
-	}
-	dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {
-		log.debug("freed")
-	}
-
-	_find_size := fn(self: ^Self, ptr: ^u8): ?uint {
-		i := 0
-		loop if i == self.allocations.len() break else {
-			defer i += 1
-			alloced := self.allocations.get_unchecked(i)
-			return alloced.len
+		additional := size - self.last_alloc_size
+		if self.offset + additional <= self.current_block.len {
+			self.offset += additional
+			self.last_alloc_size = size
+			return ptr
 		}
-		return null
+		new_size := alloc_size(size)
+		// ! (libc) (compiler) bug: null check broken. unwrapping.
+		new_ptr := @unwrap(Target.alloc_zeroed(new_size))
+		new_block := new_ptr[0..new_size]
+		Target.memcpy(new_ptr, @bitcast(ptr), self.last_alloc_size)
+		self.blocks.push(new_block)
+		self.current_block = new_block
+		self.offset = size
+		self.last_alloc_start = 0
+		self.last_alloc_size = size
+		log.debug("arena: reallocated")
+		return @bitcast(new_ptr)
+	}
+	$dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {
+		if Config.debug_assertions() log.error("arena: dealloc called. (makes no sense)")
 	}
 }
