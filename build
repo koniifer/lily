@@ -3,7 +3,7 @@ set -u
 
 SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 readonly SCRIPT_DIR
-readonly HBC_COMMIT="4826e26f"
+readonly HBC_COMMIT="27811d2e"
 readonly HBC_BRANCH="memory-rework"
 readonly SRC_DIR="$SCRIPT_DIR/src"
 readonly TEST_DIR="$SRC_DIR/test"
