@@ -1,6 +1,6 @@
-/*
- * exit: 0
- */
+expected := .{
+	exit: 0,
+}
 
 opaque := fn(v: @Any()): bool {
 	return v < 0

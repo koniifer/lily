@@ -1,7 +1,7 @@
-/*
- * exit: 10
- * timeout: 1s
- */
+expected := .{
+	exit: 0,
+	timeout: 1.0,
+}
 
 Vec := struct {
 	len: uint,

@@ -1,7 +1,7 @@
-/*
- * stdout: Hello, World!
- * exit: 0
- */
+expected := .{
+	exit: 0,
+	stdout: "Hello, World!",
+}
 
 lily := @use("../../lily/lib.hb")
 

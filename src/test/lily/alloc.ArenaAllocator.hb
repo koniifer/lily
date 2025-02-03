@@ -1,6 +1,7 @@
-/*
- * exit: 0
- */
+expected := .{
+	exit: 0,
+}
+
 lily := @use("../../lily/lib.hb")
 
 main := fn(): u8 {

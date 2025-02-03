@@ -75,16 +75,16 @@ parse_args() {
             target=$2
             shift
             ;;
-        -u | --test)
-            test="all"
-            ;;
-        --test=?*)
-            if [ "${1#*=}" = "none" ]; then warn "'--test=none' is redundant"; fi
-            test=${1#*=}
-            ;;
-        --test=)
-            die "'--test=' requires a non-empty option argument"
-            ;;
+        # -u | --test)
+        #     test="all"
+        #     ;;
+        # --test=?*)
+        #     if [ "${1#*=}" = "none" ]; then warn "'--test=none' is redundant"; fi
+        #     test=${1#*=}
+        #     ;;
+        # --test=)
+        #     die "'--test=' requires a non-empty option argument"
+        #     ;;
         --target=?*) target=${1#*=} ;;
         --target=)
             die "'--target=' requires a non-empty option argument"

@@ -11,7 +11,7 @@ Generator := struct {
 	}
 }
 // inlining this breaks it :(
-add := fn(sum: uint, x: uint): uint {
+$add := fn(sum: uint, x: uint): uint {
 	return sum + x
 }
 

@@ -1,6 +1,6 @@
-/*
- * exit: 0
- */
+expected := .{
+	exit: 0,
+}
 
 A := struct {
 	inner: u8,

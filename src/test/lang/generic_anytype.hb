@@ -1,6 +1,6 @@
-/*
- * exit: 0
- */
+expected := .{
+	exit: 0,
+}
 
 generic := fn(v: @Any()): uint {
 	if @TypeOf(v) == uint {
