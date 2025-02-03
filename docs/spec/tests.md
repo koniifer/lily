@@ -5,7 +5,9 @@ tests are written in [src/test](../../src/test/)
 3. all tests should return any integer or boolean value.
     > follow standard practices for exit code.<br>
     > `0` for success, `1` for error, etc
-4. all tests should contain the test specification at the top of the file
+4. all tests should contain the test specification (preferably at the top of the file)
+    - strings & arrays may be multiline
+    - argument order does not matter
     - all test arguments are optional
         > tests with no arguments will always pas
     - `timeout` is the max length a test can run before failing
@@ -24,8 +26,8 @@ expected := .{
     args: .[]
 }
 
-main := fn(): void {
+main := fn(): u8 {
     // test will fail after 0.5s
     loop {}
 }
- ```
+```

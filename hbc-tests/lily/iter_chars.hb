@@ -3,7 +3,7 @@ expected := .{
 	stdout: "Hello, World!",
 }
 
-lily := @use("../../lily/lib.hb")
+lily := @use("../../src/lily/lib.hb")
 
 main := fn(): u8 {
 	str := lily.string.chars("Hello, ").intersperse(

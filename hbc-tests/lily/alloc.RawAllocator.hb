@@ -2,10 +2,10 @@ expected := .{
 	exit: 0,
 }
 
-lily := @use("../../lily/lib.hb")
+lily := @use("../../src/lily/lib.hb")
 
-main := fn(): u8 {
-	allocator := lily.alloc.ArenaAllocator.new()
+main := fn(): uint {
+	allocator := lily.alloc.RawAllocator.new()
 	defer allocator.deinit()
 	b := allocator.alloc(u8, 100)
 	if b == null return 1
