@@ -1,4 +1,4 @@
-lily := @use("lily/lib.hb");
+lily := @use("lib.hb");
 
 Generator := struct {
 	n: uint = 0,
