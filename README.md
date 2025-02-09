@@ -1,6 +1,11 @@
 # Lily
 an attempt at a cross-platform standard library for hblang.
 
+> [!CAUTION]
+> # hblang is currently very broken
+> like super broken. please don't use lily right now.<br>
+> hblang is getting rewritten in zig, so soon we will have this all working again.
+
 > [!IMPORTANT]
 > all features, targets, modules, etc, are provisional and may be subject to change or deletion
 

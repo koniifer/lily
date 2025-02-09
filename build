@@ -9,6 +9,7 @@ readonly SRC_DIR="$SCRIPT_DIR/src"
 readonly TEST_DIR="$SRC_DIR/test"
 readonly BUILD_PATH="$SCRIPT_DIR/target"
 readonly CHECKSUM_FILE="$BUILD_PATH/checksum"
+readonly LIBLILY_DIR="$SCRIPT_DIR/liblily"
 
 hbc_flags="--backend-flags=opt_level=none,regalloc_checker=true,enable_verifier=true,use_colocated_libcalls=true,enable_pcc=true,enable_llvm_abi_extensions=true,preserve_frame_pointers=true"
 linker="" target="default" run=0 test="none" dump_asm=0 debug=1
@@ -20,9 +21,9 @@ warn() { printf "\033[33mWARN\033[0m: %s\n" "$1"; }
 
 # ! for now, ignore this.
 check_hbc() {
-    command -v hbc >/dev/null 2>&1 && return 0
-    log "hblang compiler not found in \$PATH"
-    command -v cargo >/dev/null 2>&1 || die "missing both hbc and cargo"
+    # command -v hbc >/dev/null 2>&1 && return 0
+    # log "hblang compiler not found in \$PATH"
+    # command -v cargo >/dev/null 2>&1 || die "missing both hbc and cargo"
 
     cargo_ver=$(cargo install --list | awk '/holey-bytes/ {if(match($0,/[0-9a-f]+/)) print substr($0,RSTART,8)}')
     [ "$cargo_ver" = "$HBC_COMMIT" ] && return 0
@@ -36,7 +37,7 @@ check_changes() {
     previous_checksum=""
     [ -r "$CHECKSUM_FILE" ] && previous_checksum=$(cat "$CHECKSUM_FILE")
     current_checksum=$( (
-        find "$SRC_DIR" -type f -exec md5sum {} + | LC_ALL=C sort
+        find "$SRC_DIR" "$LIBLILY_DIR" -type f -exec md5sum {} + | LC_ALL=C sort
         printf "%s%s%s" "$linker" "$target" "$hbc_flags"
     ) | md5sum)
     echo "$current_checksum" >"$CHECKSUM_FILE"
@@ -193,7 +194,7 @@ run_test() {
     [ $debug -eq 0 ] && {
         strip --strip-all --strip-debug "$BUILD_PATH/$target/lily.o"
     }
-    $linker "$BUILD_PATH/test/$name.o" -o "$BUILD_PATH/test/$name" || die "linking failed:"
+    $linker "$BUILD_PATH/$target/lily.o" -L"$BUILD_PATH/$target/" -llily -o "$BUILD_PATH/$target/lily" || die "linking failed:"
 
     if [ -n "$timeout_val" ]; then
         # shellcheck disable=SC2086
@@ -237,6 +238,12 @@ pretty_exitcode() {
 # todo: this spawns every test all at once. consider limiting to $(nproc) tests at once.
 do_tests() {
     detect_linker
+
+    # temporary because yes :thumbsup:
+    mkdir -p "$BUILD_PATH/$target" || die "failed to create build dir"
+    $linker -c "$LIBLILY_DIR/lily.c" -o "$BUILD_PATH/$target/liblily.o"
+    ar rcs "$BUILD_PATH/$target/liblily.a" "$BUILD_PATH/$target/liblily.o"
+
     mkdir -p "$BUILD_PATH/test" || die "failed to create test dir"
 
     tmpfile=$(mktemp) || die "Failed to create temporary file"
@@ -274,7 +281,12 @@ do_build() {
             [ $debug -eq 0 ] && {
                 strip --strip-all --strip-debug "$BUILD_PATH/$target/lily.o"
             }
-            $linker "$BUILD_PATH/$target/lily.o" -o "$BUILD_PATH/$target/lily"
+
+            # temporary because yes :thumbsup:
+            $linker -c "$LIBLILY_DIR/lily.c" -o "$BUILD_PATH/$target/liblily.o"
+            ar rcs "$BUILD_PATH/$target/liblily.a" "$BUILD_PATH/$target/liblily.o"
+
+            $linker "$BUILD_PATH/$target/lily.o" -L"$BUILD_PATH/$target/" -llily -o "$BUILD_PATH/$target/lily" || die "linking failed"
         fi
     fi
 
@@ -284,7 +296,7 @@ do_build() {
 main() {
     parse_args "$@"
     mkdir -p "$BUILD_PATH" || die "can't create build dir"
-    #check_hbc
+    # check_hbc
 
     case $test in
     none) do_build ;;

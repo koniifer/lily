@@ -16,8 +16,8 @@ $add := fn(sum: uint, x: uint): uint {
 }
 
 main := fn(argc: uint, argv: []^void): uint {
-	sum := Generator.{}.into_iter().take(50).fold(add, 0)
-	lily.print(sum)
+	// sum := Generator.{}.into_iter().take(50).fold(add, 0)
+	// lily.print(sum)
 
 	// // ! (libc) (compiler) bug: .collect(T) does not work.
 	// if lily.Target.current() != .LibC {
@@ -78,6 +78,17 @@ main := fn(argc: uint, argv: []^void): uint {
 	// } else {
 	// 	lily.print("parent")
 	// }
+
+	a := @unwrap(lily.Target.alloc(1024))
+	i := 0
+	loop if i == 1024 break else {
+		defer i += 1;
+		*(a + i) = 'A'
+		// doesnt increment??? strange...
+		lily.print(a + i)
+	}
+	// print my screams to stdout
+	lily.print(a[0..250])
 
 	// Allocator := lily.alloc.ArenaAllocator
 	// allocator := Allocator.new()
