@@ -1,30 +1,8 @@
 lily.{target, log, mem} := @use("lily")
 
 main := fn(): void {
-	a := target.alloc(1000)
-	if a == null die
-	b: ^u8 = @bit_cast(a.?)
-
-	// a := "Hello, World!"
-	// b := mem.bytes(a).map(fn(x: u8): u8 return x + 2)
-	// c := b.next().val
-	// if c != 0x48 + 2 die
-
-	// a := target.alloc(1000)[0..1000]
-	// // todo: remove @as()
-	// if @as(uint, @bit_cast(a.ptr)) == 0 {
-	// 	log.error("alloced is null")
-	// 	die
-	// }
-
-	// mem.copy(a.ptr, "Hello, World!".ptr, 13)
-
-	// if !mem.equals(a[0..13], "Hello, World!") {
-	// 	log.error("badness")
-	// 	die
-	// }
-
-	// log.info(a[0..13])
-
-	// target.dealloc(a.ptr, 1000)
+	a := "Hello, World!"
+	b := mem.bytes(a).take(5).for_each(fn(x: u8): void {
+		if x % 2 == 0 log.info("even") else log.info("odd")
+	})
 }
