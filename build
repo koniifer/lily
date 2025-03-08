@@ -8,56 +8,62 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/test}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.us/mlokis/hblang"
-readonly HBLANG_COMMIT="fcbcaac67dd47887fef81bc62d4b66a6cf071f8c"
-readonly HBLANG_BRANCH="main"
+readonly HBLANG_COMMIT="025a4865beb9b372f6f1025fdcca13f55aa55517"
 readonly HBLANG_CFLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBLANG_CFLAGS:-}"
 
 die() { error "$2" && exit "$1"; }
 error() { printf "\033[31mERROR\033[0m: %s\n" "$1" 1>&2; }
-log() { printf "\033[32mINFO\033[0m: %s\n" "$1"; }
-warn() { printf "\033[33mWARN\033[0m: %s\n" "$1"; }
+log() { printf "\033[32mINFO\033[0m: %s\n" "$1" 1>&2; }
+warn() { printf "\033[33mWARN\033[0m: %s\n" "$1" 1>&2; }
 
 fetch_step() {
-
     command -v zig >/dev/null 2>&1 || die 101 "'zig' binary not found in PATH"
     command -v git >/dev/null 2>&1 || die 101 "'git' binary not found in PATH"
 
-    if [ -d "$LILY_BUILD_DIR/hblang" ]; then
-        cd "$LILY_BUILD_DIR/hblang" || die 1 "cd to $LILY_BUILD_DIR/hblang failed"
+    hblang_dir="$LILY_BUILD_DIR/hblang"
+    mkdir -p "$hblang_dir" || die 1 "failed to create hblang directory"
 
-        CURR_BRANCH=$(git rev-parse --abbrev-ref HEAD >/dev/null 2>&1)
-        [ "$CURR_BRANCH" = "$HBLANG_BRANCH" ] || git checkout "$HBLANG_BRANCH" >/dev/null 2>&1
-        CURR_COMMIT=$(git rev-parse HEAD >/dev/null 2>&1)
-        [ "$CURR_COMMIT" = "$HBLANG_COMMIT" ] || git checkout "$HBLANG_COMMIT" >/dev/null 2>&1
+    if [ -d "$hblang_dir/.git" ]; then
+        cd "$hblang_dir" || die 1 "failed to enter hblang directory"
+
+        current_commit=$(git rev-parse HEAD 2>/dev/null)
+        if [ "$current_commit" != "$HBLANG_COMMIT" ]; then
+            if ! git cat-file -e "$HBLANG_COMMIT^{commit}" 2>/dev/null; then
+                log "fetching hblang repository updates"
+                git fetch --all >/dev/null 2>&1 || die 1 "failed to fetch repository"
+            fi
+            git checkout -f "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to checkout commit"
+        fi
     else
-        mkdir -p "$LILY_BUILD_DIR/hblang"
-        git clone "$HBLANG_GIT" "$LILY_BUILD_DIR/hblang" --branch "$HBLANG_BRANCH"
-        cd "$LILY_BUILD_DIR/hblang" || die 1 "cd to $LILY_BUILD_DIR/hblang failed"
-        git checkout "$HBLANG_COMMIT" >/dev/null 2>&1
+        log "cloning hblang repository"
+        git clone "$HBLANG_GIT" "$hblang_dir" >/dev/null 2>&1 || die 1 "failed to clone repository"
+        cd "$hblang_dir" || die 1 "failed to enter cloned directory"
+
+        if ! git cat-file -e "$HBLANG_COMMIT^{commit}" 2>/dev/null; then
+            git fetch origin "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to fetch commit"
+        fi
+        git checkout -f "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to checkout commit"
     fi
 
-    zig build install
+    zig build install >/dev/null 2>&1 || die 1 "failed to build hblang"
 
-    PATH="$LILY_BUILD_DIR/hblang/zig-out/bin:$PATH"
-
-    cd "$LILY_SCRIPT_DIR" || die 1 "cd to $LILY_SCRIPT_DIR failed"
-
+    PATH="$hblang_dir/zig-out/bin:$PATH"
+    cd "$LILY_SCRIPT_DIR" || die 1 "failed to return to script directory"
 }
 
 main() {
-    mkdir -p "$LILY_BUILD_DIR" || die 1 "can't create build dir"
+    mkdir -p "$LILY_BUILD_DIR" || die 1 "failed to create build directory"
     fetch_step
 
     inp="${1:-main.hb}"
-
-    [ -z "$inp" ] || [ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
+    [ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
 
     # shellcheck disable=SC2086
-    {
-        hblang $HBLANG_CFLAGS $inp
-        # todo: dont do this second compile if first fails
-        hblang $HBLANG_CFLAGS $inp --fmt >/dev/null 2>&1
-    }
+    if hblang $HBLANG_CFLAGS "$inp"; then
+        hblang $HBLANG_CFLAGS "$inp" --fmt >/dev/null 2>&1
+    else
+        exit $?
+    fi
 }
 
 main "$@"

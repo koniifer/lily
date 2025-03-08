@@ -1,10 +1,24 @@
-.{func} := Lib(current())
+.{
+	LogEcall,
+	pages,
+	page_len,
+	alloc,
+	alloc_zeroed,
+	realloc,
+	dealloc,
+	memcopy,
+	memmove,
+	memset,
+	exit,
+	fill_rand,
+	fork,
+} := Lib(current())
 
 Target := enum {
 	.AbleOS;
 }
 
-$current := fn(): Target {
+current := fn(): Target {
 	$if @target("ableos") {
 		return .AbleOS
 	} else {
@@ -12,7 +26,7 @@ $current := fn(): Target {
 	}
 }
 
-$Lib := fn(target: Target): type {
+Lib := fn(target: Target): type {
 	$match target {
 		.AbleOS => return @use("ableos.hb"),
 	}
