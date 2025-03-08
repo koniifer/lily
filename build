@@ -1,315 +1,63 @@
 #!/bin/sh
 set -u
 
-SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
-readonly SCRIPT_DIR
-readonly HBC_COMMIT="da3dabaf"
-readonly HBC_BRANCH="memory-rework"
-readonly SRC_DIR="$SCRIPT_DIR/src"
-readonly TEST_DIR="$SRC_DIR/test"
-readonly BUILD_PATH="$SCRIPT_DIR/target"
-readonly CHECKSUM_FILE="$BUILD_PATH/checksum"
-readonly LIBLILY_DIR="$SCRIPT_DIR/liblily"
+# shellcheck disable=SC2155
+readonly LILY_SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
+readonly LILY_SRC_DIR="${LILY_SRC_DIR:-$LILY_SCRIPT_DIR/src}"
+readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/test}"
+readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
-hbc_flags="--backend-flags=opt_level=none,regalloc_checker=true,enable_verifier=true,use_colocated_libcalls=true,enable_pcc=true,enable_llvm_abi_extensions=true,preserve_frame_pointers=true"
-linker="" target="default" run=0 test="none" dump_asm=0 debug=1
+readonly HBLANG_GIT="https://git.ablecorp.us/mlokis/hblang"
+readonly HBLANG_COMMIT="fcbcaac67dd47887fef81bc62d4b66a6cf071f8c"
+readonly HBLANG_BRANCH="main"
+readonly HBLANG_CFLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBLANG_CFLAGS:-}"
 
-die() { error "$1" && exit 1; }
-error() { printf "\033[31mERROR\033[0m: %s\n" "$1" >&2; }
+die() { error "$2" && exit "$1"; }
+error() { printf "\033[31mERROR\033[0m: %s\n" "$1" 1>&2; }
 log() { printf "\033[32mINFO\033[0m: %s\n" "$1"; }
 warn() { printf "\033[33mWARN\033[0m: %s\n" "$1"; }
 
-# ! for now, ignore this.
-check_hbc() {
-    # command -v hbc >/dev/null 2>&1 && return 0
-    # log "hblang compiler not found in \$PATH"
-    # command -v cargo >/dev/null 2>&1 || die "missing both hbc and cargo"
+fetch_step() {
 
-    cargo_ver=$(cargo install --list | awk '/holey-bytes/ {if(match($0,/[0-9a-f]+/)) print substr($0,RSTART,8)}')
-    [ "$cargo_ver" = "$HBC_COMMIT" ] && return 0
+    command -v zig >/dev/null 2>&1 || die 101 "'zig' binary not found in PATH"
+    command -v git >/dev/null 2>&1 || die 101 "'git' binary not found in PATH"
 
-    log "installing hbc($HBC_BRANCH)@$HBC_COMMIT..."
-    cargo +nightly install --git https://git.ablecorp.us/ableos/holey-bytes hbc --debug --rev "$HBC_COMMIT" --branch "$HBC_BRANCH" >/dev/null 2>&1 ||
-        die "failed to install hbc (do you have nightly rust installed?)"
-}
+    if [ -d "$LILY_BUILD_DIR/hblang" ]; then
+        cd "$LILY_BUILD_DIR/hblang" || die 1 "cd to $LILY_BUILD_DIR/hblang failed"
 
-check_changes() {
-    previous_checksum=""
-    [ -r "$CHECKSUM_FILE" ] && previous_checksum=$(cat "$CHECKSUM_FILE")
-    current_checksum=$( (
-        find "$SRC_DIR" "$LIBLILY_DIR" -type f -exec md5sum {} + | LC_ALL=C sort
-        printf "%s%s%s" "$linker" "$target" "$hbc_flags"
-    ) | md5sum)
-    echo "$current_checksum" >"$CHECKSUM_FILE"
-    [ "$previous_checksum" != "$current_checksum" ]
-}
-
-show_help() {
-    cat <<EOF
-Usage: $0 [options]
-    -r, --run        run the output binary
-    -n, --no-debug   disable debug mode
-    -a, --dump-asm   dump assembly to stdout
-    -l, --linker     specify linker (default: auto-detect)
-    -t, --target     target triple/alias (<default>, libc, ableos, hbvm)
-    -h, --help       show this help
-    -u, --test       run tests (lang/lily/<all>)
-Examples:
-    $0 -t ableos
-    $0 -r -l 'zig cc' -t libc
-    $0 -a -t ableos > out.hbf
-EOF
-}
-
-parse_args() {
-    while [ $# -gt 0 ]; do
-        case ${1:-""} in
-        -h | --help)
-            show_help
-            exit
-            ;;
-        -r | --run) run=1 ;;
-        -n | --no-debug) debug=0 hbc_flags="--backend-flags=opt_level=speed,enable_verifier=false,regalloc_checker=false,enable_alias_analysis=true,use_colocated_libcalls=true,enable_llvm_abi_extensions=true" ;;
-        -a | --dump-asm) dump_asm=1 ;;
-        -t | --target)
-            [ -z "${2:-}" ] && die "'--target' requires a non-empty option argument"
-            target=$2
-            shift
-            ;;
-        # -u | --test)
-        #     test="all"
-        #     ;;
-        # --test=?*)
-        #     if [ "${1#*=}" = "none" ]; then warn "'--test=none' is redundant"; fi
-        #     test=${1#*=}
-        #     ;;
-        # --test=)
-        #     die "'--test=' requires a non-empty option argument"
-        #     ;;
-        --target=?*) target=${1#*=} ;;
-        --target=)
-            die "'--target=' requires a non-empty option argument"
-            ;;
-        -l | --linker)
-            [ -z "${2:-}" ] && die "'--linker' requires a non-empty option argument"
-            linker=$2
-            shift
-            ;;
-        --linker=?*) linker=${1#*=} ;;
-        --linker=) die "'--linker' requires a non-empty option argument" ;;
-        -o | --out)
-            [ -z "${2:-}" ] && die "'--out' requires a non-empty option argument"
-            out=$2
-            shift
-            ;;
-        --out=?*) out=${1#*=} ;;
-        --out=) die "'--out' requires a non-empty option argument" ;;
-        --)
-            shift
-            break
-            ;;
-        -?*) die "unknown option $1" ;;
-        *) break ;;
-        esac
-        shift
-    done
-    case $target in
-    hbvm | ableos)
-        target="unknown-virt-unknown"
-        if [ $run = 1 ]; then die "'--run' cannot be set with '--target $target'"; fi
-        ;;
-    libc | default) target="default" ;;
-    esac
-}
-
-build_failed() {
-    rm -f "$BUILD_PATH/$target/lily" "$CHECKSUM_FILE"
-    die "build failed"
-}
-
-detect_linker() {
-    for cmd in "zig cc" clang gcc; do
-        command -v "${cmd%% *}" >/dev/null 2>&1 && {
-            linker=$cmd
-            return
-        }
-    done
-    die "no suitable linker found"
-}
-
-post_build() {
-    [ "$target" = "unknown-virt-unknown" ] && return
-    [ $run -eq 1 ] && exec "$BUILD_PATH/$target/lily"
-    [ $dump_asm -eq 1 ] && objdump -d -M intel --no-show-raw-insn "$BUILD_PATH/$target/lily.o" |
-        awk '/^\s+[0-9a-f]+:/ {sub(/^[ \t]+/, ""); print}'
-}
-
-parse_test() {
-    in_comment=0 exit_code="" args_input="" stdout_expected="" timeout_val=""
-    while IFS= read -r line; do
-        case $in_comment in
-        0) case $line in "/*"*)
-            in_comment=1
-            line=${line#/*}
-            ;;
-        esac ;;
-        1) case $line in *"*/"*)
-            line=${line%*/}
-            in_comment=2
-            ;;
-        esac ;;
-        esac
-        line=$(echo "$line" | sed 's/^[[:space:]]*\*[[:space:]]\{0,1\}//; s/[[:space:]]*$//')
-        [ $in_comment -ne 0 ] && process_test_line "${line%%*/}"
-        [ $in_comment -eq 2 ] && break
-    done <"$1"
-}
-
-process_test_line() {
-    line=$(echo "$1" | sed 's/^[[:space:]]*\*[[:space:]]*//; s/[[:space:]]*$//')
-    [ -z "$line" ] && return
-    IFS=: read -r key value <<EOF
-$line
-EOF
-    key=$(echo "$key" | tr -d ' ')
-    value=$(echo "$value" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
-    case $key in
-    exit) exit_code=$value ;;
-    args) args_input=$value ;;
-    stdout) stdout_expected=$value ;;
-    timeout) timeout_val=${value} ;;
-    esac
-}
-
-run_test() {
-    file=$1 name=$2 output="" rc=0 failed=0
-    parse_test "$file"
-    hbc "$file" $hbc_flags >"$BUILD_PATH/test/$name.o" 2>&1
-    rc=$?
-    [ $rc -ne 0 ] && {
-        # todo: quiet mode to hide compilation errors.
-        error "$name: compilation failed (exit: $(pretty_exitcode "$rc")): $(cat "$BUILD_PATH/test/$name.o")"
-        return 1
-    }
-    [ $debug -eq 0 ] && {
-        strip --strip-all --strip-debug "$BUILD_PATH/$target/lily.o"
-    }
-    $linker "$BUILD_PATH/$target/lily.o" -L"$BUILD_PATH/$target/" -llily -o "$BUILD_PATH/$target/lily" || die "linking failed:"
-
-    if [ -n "$timeout_val" ]; then
-        # shellcheck disable=SC2086
-        output=$(timeout "$timeout_val" "$BUILD_PATH/test/$name" $args_input 2>&1)
-        rc=$?
-        [ $rc -eq 124 ] && {
-            error "$name: timeout"
-            failed=1
-        }
+        CURR_BRANCH=$(git rev-parse --abbrev-ref HEAD >/dev/null 2>&1)
+        [ "$CURR_BRANCH" = "$HBLANG_BRANCH" ] || git checkout "$HBLANG_BRANCH" >/dev/null 2>&1
+        CURR_COMMIT=$(git rev-parse HEAD >/dev/null 2>&1)
+        [ "$CURR_COMMIT" = "$HBLANG_COMMIT" ] || git checkout "$HBLANG_COMMIT" >/dev/null 2>&1
     else
-        # shellcheck disable=SC2086
-        output=$("$BUILD_PATH/test/$name" $args_input 2>&1)
-        rc=$?
+        mkdir -p "$LILY_BUILD_DIR/hblang"
+        git clone "$HBLANG_GIT" "$LILY_BUILD_DIR/hblang" --branch "$HBLANG_BRANCH"
+        cd "$LILY_BUILD_DIR/hblang" || die 1 "cd to $LILY_BUILD_DIR/hblang failed"
+        git checkout "$HBLANG_COMMIT" >/dev/null 2>&1
     fi
 
-    [ "$rc" != "$exit_code" ] && {
-        error "$name: exit code $(pretty_exitcode "$rc") != $exit_code"
-        failed=1
-    }
-    [ -n "$stdout_expected" ] && [ "$output" != "$stdout_expected" ] && {
-        error "$name: output mismatch
-expected: $stdout_expected
-got:      $output"
-        failed=1
-    }
-    [ $failed -eq 0 ] && log "$test_name completed successfully"
-    return $failed
-}
+    zig build install
 
-pretty_exitcode() {
-    exit_code=$1
-    signal=$((exit_code - 128))
+    PATH="$LILY_BUILD_DIR/hblang/zig-out/bin:$PATH"
 
-    if [ $signal -gt 0 ] && [ $signal -lt 32 ]; then
-        echo "$exit_code (SIG$(kill -l $signal 2>/dev/null || echo "???"))"
-    else
-        echo "$exit_code"
-    fi
-}
+    cd "$LILY_SCRIPT_DIR" || die 1 "cd to $LILY_SCRIPT_DIR failed"
 
-# todo: this spawns every test all at once. consider limiting to $(nproc) tests at once.
-do_tests() {
-    detect_linker
-
-    # temporary because yes :thumbsup:
-    mkdir -p "$BUILD_PATH/$target" || die "failed to create build dir"
-    $linker -c "$LIBLILY_DIR/lily.c" -o "$BUILD_PATH/$target/liblily.o"
-    ar rcs "$BUILD_PATH/$target/liblily.a" "$BUILD_PATH/$target/liblily.o"
-
-    mkdir -p "$BUILD_PATH/test" || die "failed to create test dir"
-
-    tmpfile=$(mktemp) || die "Failed to create temporary file"
-    find "${TEST_DIR}/${test#all}" -type f >"$tmpfile" || die "Find command failed"
-
-    while IFS= read -r file; do
-        [ -f "$file" ] || continue
-        test_name=$(basename "$file" .hb)
-        log "Testing $test_name"
-        (run_test "$file" "$test_name") &
-    done <"$tmpfile"
-
-    wait
-    rm -r "$tmpfile" "$BUILD_PATH/test"
-}
-
-do_build() {
-    mkdir -p "$BUILD_PATH/$target" || die "failed to create $BUILD_PATH/$target"
-    [ -w "$BUILD_PATH/$target" ] || die "no write permission"
-
-    if check_changes || [ ! -e "$BUILD_PATH/$target/lily" ]; then
-        if [ "$target" = "unknown-virt-unknown" ]; then
-            out="$BUILD_PATH/$target/lily.axe"
-            [ $dump_asm -eq 1 ] && {
-                hbc_flags="$hbc_flags --dump-asm"
-                out="/dev/stdout"
-            }
-            # shellcheck disable=SC2086
-            hbc "$SRC_DIR/main.hb" $hbc_flags --target="$target" >"$out" || build_failed
-        else
-            [ -z "$linker" ] && detect_linker
-            [ "$target" != "default" ] && hbc_flags="$hbc_flags --target=$target"
-            # shellcheck disable=SC2086
-            hbc "$SRC_DIR/main.hb" $hbc_flags >"$BUILD_PATH/$target/lily.o" || build_failed
-            [ $debug -eq 0 ] && {
-                strip --strip-all --strip-debug "$BUILD_PATH/$target/lily.o"
-            }
-
-            # temporary because yes :thumbsup:
-            $linker -c "$LIBLILY_DIR/lily.c" -o "$BUILD_PATH/$target/liblily.o"
-            ar rcs "$BUILD_PATH/$target/liblily.a" "$BUILD_PATH/$target/liblily.o"
-
-            $linker "$BUILD_PATH/$target/lily.o" -L"$BUILD_PATH/$target/" -llily -o "$BUILD_PATH/$target/lily" || die "linking failed"
-        fi
-    fi
-
-    post_build
 }
 
 main() {
-    parse_args "$@"
-    mkdir -p "$BUILD_PATH" || die "can't create build dir"
-    # check_hbc
+    mkdir -p "$LILY_BUILD_DIR" || die 1 "can't create build dir"
+    fetch_step
 
-    case $test in
-    none) do_build ;;
-    lang | lily | all)
-        [ "$test" = "all" ] && test=""
-        [ $dump_asm -eq 1 ] && die "'--dump-asm' incompatible with tests (for now)"
-        [ "$target" != "default" ] && die "'--target' incompatible with tests"
-        [ $run -eq 1 ] && warn "'--run' is redundant with tests"
-        do_tests
-        ;;
-    *) die "unknown test: $test" ;;
-    esac
-    return 0
+    inp="${1:-main.hb}"
+
+    [ -z "$inp" ] || [ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
+
+    # shellcheck disable=SC2086
+    {
+        hblang $HBLANG_CFLAGS $inp
+        # todo: dont do this second compile if first fails
+        hblang $HBLANG_CFLAGS $inp --fmt >/dev/null 2>&1
+    }
 }
 
 main "$@"
