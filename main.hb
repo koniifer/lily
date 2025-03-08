@@ -1,15 +1,14 @@
 lily.{target, log, mem} := @use("lily")
 
-FunkyTown := struct {
-	.is_null: bool;
-	.ptr: ^u8;
-}
-
 main := fn(): void {
-	a := "Hello, World!"
-	b := mem.bytes(a).map(fn(x: u8): u8 return x + 2)
-	c := b.next().val
-	if c != 0x48 + 2 die
+	a := target.alloc(1000)
+	if a == null die
+	b: ^u8 = @bit_cast(a.?)
+
+	// a := "Hello, World!"
+	// b := mem.bytes(a).map(fn(x: u8): u8 return x + 2)
+	// c := b.next().val
+	// if c != 0x48 + 2 die
 
 	// a := target.alloc(1000)[0..1000]
 	// // todo: remove @as()

@@ -11,19 +11,16 @@ $pages := fn(len: uint): uint {
 }
 
 AllocEcall := struct align(1){.pad: u8; .pages_new: uint; .zeroed: bool}
-// todo: return ?^u8
-$alloc := fn(len: uint): ^u8 {
+$alloc := fn(len: uint): ?^u8 {
 	return @ecall(3, 2, AllocEcall.(0, pages(len), false), @size_of(AllocEcall))
 }
 
-// todo: return ?^u8
-$alloc_zeroed := fn(len: uint): ^u8 {
+$alloc_zeroed := fn(len: uint): ?^u8 {
 	return @ecall(3, 2, AllocEcall.(0, pages(len), true), @size_of(AllocEcall))
 }
 
 ReallocEcall := struct align(1){.pad: u8; .pages_old: uint; .pages_new: uint; .ptr_old: ^u8}
-// todo: return ?^u8.
-$realloc := fn(ptr_old: ^u8, len_old: uint, len_new: uint): ^u8 {
+$realloc := fn(ptr_old: ^u8, len_old: uint, len_new: uint): ?^u8 {
 	return @ecall(3, 2, ReallocEcall.(7, pages(len_old), pages(len_new), ptr_old), @size_of(ReallocEcall))
 }
 
