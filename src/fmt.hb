@@ -1,0 +1,62 @@
+.{target, Type, TypeOf, mem} := @use("lib.hb")
+
+// ! uint only for now, due to broken @Any(). just upcast.
+fmt_int := fn(buf: []u8, v: uint, radix: uint): uint {
+	if radix == 0 {
+		mem.copy(buf.ptr, @bit_cast(&v), @size_of(@TypeOf(v)))
+		return @size_of(@TypeOf(v))
+	}
+
+	prefix_len := 0
+	// ! see above comment ^^
+	// if TypeOf(v).is_signed_int() & v < 0 {
+	// 	v = -v
+	// 	// 0x2D == '-'
+	// 	buf[0] = 0x2D
+	// 	prefix_len += 1
+	// }
+	if radix == 16 {
+		// ! @bit_cast() for now, due to broken ptr offsets
+		mem.copy(buf.ptr + @bit_cast(prefix_len), "0x".ptr, 2)
+		prefix_len += 2
+	} else if radix == 8 {
+		mem.copy(buf.ptr + @bit_cast(prefix_len), "0o".ptr, 2)
+		prefix_len += 2
+	} else if radix == 2 {
+		mem.copy(buf.ptr + @bit_cast(prefix_len), "0b".ptr, 2)
+		prefix_len += 2
+	}
+
+	if v == 0 {
+		// 0x30 == '0'
+		buf[prefix_len] = 0x30
+		return prefix_len + 1
+	}
+
+	i := prefix_len
+	loop if v <= 0 break else {
+		remainder := v % radix
+		// todo: complain about /= not existing
+		v = v / radix
+		if remainder > 9 {
+			// 0x41 == 'A'
+			buf[i] = @int_cast(remainder - 10 + 0x41)
+		} else {
+			// 0x30 == '0'
+			buf[i] = @int_cast(remainder + 0x30)
+		}
+		i += 1
+	}
+	_ = mem.reverse(buf[prefix_len..i])
+	return i
+}
+
+fmt_bool := fn(buf: []u8, v: bool): uint {
+	if v {
+		mem.copy(buf.ptr, "true".ptr, 4)
+		return 4
+	} else {
+		mem.copy(buf.ptr, "false".ptr, 5)
+		return 5
+	}
+}
