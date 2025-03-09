@@ -9,11 +9,11 @@ main := fn(): void {
 	// i := 0
 	// loop if i == 5 break else {
 	// 	// 24 = @size_of(AllocationHeader)
-	// 	if alloc.Arena.alloc(&arena, u8, target.page_len() - 24) == null die
+	// 	if arena.alloc(u8, target.page_len() - 24) == null die
 	// 	i += 1
 	// }
 
-	b = alloc.Arena.alloc_zeroed(&arena, u8, 1000).?
+	b = arena.alloc_zeroed(u8, 1000).?
 
 	mem.bytes(mem.reverse("Hello, World!")[1..]).take(5).for_each(fn(x: u8): void {
 		len := fmt.fmt_int(b, x, 16)

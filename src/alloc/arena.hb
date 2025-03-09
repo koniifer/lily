@@ -56,8 +56,7 @@ Arena := struct {
 		return @as(^T, @bit_cast(@as(^u8, @bit_cast(header + 1)) + header.len - size))[0..count]
 	}
 	$alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?[]T {
-		// todo: change back after struct method fix
-		slice := Self.alloc(self, T, count)
+		self.alloc(T, count)
 		if slice == null return null
 		mem.set(slice.?.ptr, 0, slice.?.len)
 		return slice
@@ -66,7 +65,8 @@ Arena := struct {
 		@error("todo: ", Self.realloc)
 		return null
 	}
-	$dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {}
+	$dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {
+	}
 	deinit := fn(self: ^Self): void {
 		if self.allocation == null {
 			lily.log.error("fixme: double free arena. can't fix due to compiler.")
