@@ -1,5 +1,20 @@
 .{target, iter: .{Iterator, Next}} := @use("lib.hb")
 
+$size := fn($T: type, count: uint): uint {
+	return @size_of(T) * count
+}
+
+// ! (compiler) bug: parameter named 'align' causes panic.
+/// safety: assumes align != 0
+$forward_align := fn(ptr: ^u8, _align: uint): ^u8 {
+	return @bit_cast((@bit_cast(ptr) + _align - 1) / _align * _align)
+}
+
+/// safety: assumes align != 0
+$backward_align := fn(ptr: ^u8, _align: uint): ^u8 {
+	return @bit_cast(@bit_cast(ptr) / _align * _align)
+}
+
 $copy := fn(dest: ^u8, src: ^u8, len: uint): void {
 	target.memcopy(dest, src, len)
 }

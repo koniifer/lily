@@ -12,12 +12,10 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	if Type(@TypeOf(v)).is_signed_int() & v < 0 {
 		v = -v
 		// 0x2D == '-'
-		// ! (compiler) bug: 0x2D != 45 for some reason
-		buf[0] = 45
+		buf[0] = 0x2D
 		prefix_len += 1
 	}
 	if radix == 16 {
-		// ! (compiler) bug: expected ^u8 got uint
 		mem.copy(buf.ptr + prefix_len, "0x".ptr, 2)
 		prefix_len += 2
 	} else if radix == 8 {
