@@ -8,7 +8,7 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/test}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.us/mlokis/hblang"
-readonly HBLANG_COMMIT="092e75aca33fc3ca8a4ab2f9affddad9b803eed9"
+readonly HBLANG_COMMIT="f3ae2405b47b3322e26bbd46382915cd1f11aaa0"
 readonly HBLANG_CFLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBLANG_CFLAGS:-}"
 
 die() { error "$2" && exit "$1"; }

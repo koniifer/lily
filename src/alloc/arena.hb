@@ -56,7 +56,7 @@ Arena := struct {
 		return @as(^T, @bit_cast(@as(^u8, @bit_cast(header + 1)) + header.len - size))[0..count]
 	}
 	$alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?[]T {
-		self.alloc(T, count)
+		slice := self.alloc(T, count)
 		if slice == null return null
 		mem.set(slice.?.ptr, 0, slice.?.len)
 		return slice
