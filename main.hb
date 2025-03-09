@@ -13,7 +13,7 @@ main := fn(): void {
 	// 	i += 1
 	// }
 
-	b = alloc.Arena.alloc(&arena, u8, 1000).?
+	b = alloc.Arena.alloc_zeroed(&arena, u8, 1000).?
 
 	mem.bytes(mem.reverse("Hello, World!")[1..]).take(5).for_each(fn(x: u8): void {
 		len := fmt.fmt_int(b, x, 16)

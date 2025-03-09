@@ -4,7 +4,12 @@ Vec := fn(T: type, A: type): type return struct {
 	.cap: uint;
 	.allocator: ^A
 
-	new := fn(allocator: ^A): @CurrentScope() {
+	Self := @CurrentScope()
+
+	$new := fn(allocator: ^A): Self {
 		return .(idk, 0, allocator)
+	}
+
+	deinit := fn(self: ^Self): void {
 	}
 }

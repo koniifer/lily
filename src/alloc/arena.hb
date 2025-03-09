@@ -3,15 +3,17 @@ lily.{target, mem} := @use("../lib.hb")
 AllocationHeader := struct {
 	.cap: uint;
 	.len: uint;
-	.next: ?^AllocationHeader
+	.next: ?^Self
 
-	new := fn(size: uint): ?^AllocationHeader {
-		total_size := size + @size_of(AllocationHeader)
-		ptr: ?^AllocationHeader = @bit_cast(target.alloc(total_size))
+	Self := @CurrentScope()
+
+	$new := fn(size: uint): ?^Self {
+		total_size := size + @size_of(Self)
+		ptr: ?^Self = @bit_cast(target.alloc(total_size))
 		if ptr == null return null
-		header: ^AllocationHeader = @bit_cast(ptr)
+		header: ^Self = @bit_cast(ptr)
 		header.* = .(
-			target.pages(total_size) * target.page_len() - @size_of(AllocationHeader),
+			target.pages(total_size) * target.page_len() - @size_of(Self),
 			0,
 			null,
 		)
@@ -22,11 +24,13 @@ AllocationHeader := struct {
 Arena := struct {
 	.allocation: ?^AllocationHeader
 
+	Self := @CurrentScope()
+
 	$new := fn(): @CurrentScope() {
 		return .(null)
 	}
 	// todo: handle alignment
-	alloc := fn(self: ^Arena, $T: type, count: uint): ?[]T {
+	alloc := fn(self: ^Self, $T: type, count: uint): ?[]T {
 		size := mem.size(T, count)
 		header: ^AllocationHeader = idk
 		if self.allocation == null {
@@ -51,7 +55,19 @@ Arena := struct {
 		}
 		return @as(^T, @bit_cast(@as(^u8, @bit_cast(header + 1)) + header.len - size))[0..count]
 	}
-	deinit := fn(self: ^Arena): void {
+	$alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?[]T {
+		// todo: change back after struct method fix
+		slice := Self.alloc(self, T, count)
+		if slice == null return null
+		mem.set(slice.?.ptr, 0, slice.?.len)
+		return slice
+	}
+	$realloc := fn(self: ^Self, $T: type, ptr_old: ^T, count_new: uint): ?[]T {
+		@error("todo: ", Self.realloc)
+		return null
+	}
+	$dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {}
+	deinit := fn(self: ^Self): void {
 		if self.allocation == null {
 			lily.log.error("fixme: double free arena. can't fix due to compiler.")
 			die
