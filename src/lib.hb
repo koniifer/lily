@@ -1,5 +1,6 @@
 .{Type, TypeOf} := @use("type.hb")
 target := @use("target/lib.hb")
+alloc := @use("alloc/lib.hb")
 iter := @use("iter.hb")
 mem := @use("mem.hb")
 log := @use("log.hb")

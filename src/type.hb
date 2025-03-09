@@ -1,5 +1,31 @@
-// ! broken, due to broken @Any(). just upcast.
-TypeOf := fn(T: @Any()): type return Type(@TypeOf(T))
+// RawKind := enum {
+// 	.Builtin;
+// 	.Pointer;
+// 	.SliceOrArray;
+// 	.Optional;
+// 	.Tuple;
+// 	.Enum;
+// 	.Union;
+// 	.Struct;
+// 	.IdkWhatThisIs;
+// 	.Function;
+// }
+
+// Kind := enum {
+// 	.Builtin;
+// 	.Pointer;
+// 	.Slice;
+// 	.Array;
+// 	.Optional;
+// 	.Tuple;
+// 	.Enum;
+// 	.Union;
+// 	.Struct;
+// 	.IdkWhatThisIs;
+// 	.Function;
+// }
+
+TypeOf := fn(v: @Any()): type return Type(@TypeOf(v))
 
 Type := fn($T: type): type return struct {
 	USize := fn(): type {
@@ -45,4 +71,17 @@ Type := fn($T: type): type return struct {
 	$bitmask := fn(): @CurrentScope().USize() {
 		return ~0
 	}
+	// $raw_kind := fn(): RawKind {
+	// 	return @bit_cast(@kind_of(T))
+	// }
+	// $kind := fn(): Kind {
+	// 	match Type(T).raw_kind() {
+	// 		.SliceOrArray => if []@ChildOf(T) == T return .Slice else return .Array,
+	// 		_ => if Type(T).raw_kind() > RawKind.SliceOrArray {
+	// 				return @bit_cast(@kind_of(T) + 1)
+	// 			}
+	// 			return @bit_cast(Type(T).raw_kind())
+	// 		},
+	// 	}
+	// }
 }

@@ -9,5 +9,5 @@ func := fn(a: @Any(), b: @TypeOf(a)): uint {
 }
 
 main := fn(): uint {
-    return func()
+    return func(@as(uint, 1), 2)
 }
