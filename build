@@ -8,8 +8,9 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/test}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.us/mlokis/hblang"
-readonly HBLANG_COMMIT="3e0b3d6e20596e36c438a44e3d20329eb6365e75"
-readonly HBLANG_CFLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBLANG_CFLAGS:-}"
+readonly HBLANG_COMMIT="e63c2858d962a6b6c5e4ddedfe4890290c228412"
+readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
+readonly HBC_BINARY="hbc"
 
 die() { error "$2" && exit "$1"; }
 error() { printf "\033[31mERROR\033[0m: %s\n" "$1" 1>&2; }
@@ -59,8 +60,8 @@ main() {
     [ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
 
     # shellcheck disable=SC2086
-    if hblang $HBLANG_CFLAGS "$inp"; then
-        hblang $HBLANG_CFLAGS "$inp" --fmt >/dev/null 2>&1
+    if $HBC_BINARY $HBC_FLAGS "$inp"; then
+        $HBC_BINARY $HBC_FLAGS "$inp" --fmt >/dev/null 2>&1
     else
         exit $?
     fi
