@@ -4,7 +4,7 @@ expectations := .{
 
 A := struct {
 	apply := fn(self: ^@CurrentScope(), $func: type): void {
-        return 0
+        
     }
 }
 
