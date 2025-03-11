@@ -19,8 +19,8 @@ Allocator := struct {
     /// same behaviour as alloc, except:
     /// must move data to new allocation,
     /// must ensure the old allocation is freed at some point.
-    realloc := fn(self: ^Self, $T: type, ptr: ^T, new_count: uint): ?[]T
+    realloc := fn(self: ^Self, $T: type, prev: []T, new_count: uint): ?[]T
     /// must dealloc or schedule the freeing of the given allocation
-    dealloc := fn(self: ^Self, $T: type, ptr: ^T): void
+    dealloc := fn(self: ^Self, $T: type, prev: []T): void
 }
 ```

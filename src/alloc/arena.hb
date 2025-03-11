@@ -61,11 +61,13 @@ Arena := struct {
 		mem.set(slice.?.ptr, 0, slice.?.len)
 		return slice
 	}
-	$realloc := fn(self: ^Self, $T: type, ptr_old: ^T, count_new: uint): ?[]T {
-		@error("todo: ", Self.realloc)
-		return null
+	$realloc := fn(self: ^Self, $T: type, prev: []T, count_new: uint): ?[]T {
+		slice := self.alloc(T, mem.size(T, count_new))
+		if slice == null return null
+		mem.copy(@bit_cast(slice.?.ptr), @bit_cast(prev.ptr), mem.size(T, prev.len))
+		return slice
 	}
-	$dealloc := fn(self: ^Self, $T: type, ptr: ^T): void {
+	$dealloc := fn(self: ^Self, $T: type, prev: []T): void {
 	}
 	deinit := fn(self: ^Self): void {
 		if self.allocation == null {
