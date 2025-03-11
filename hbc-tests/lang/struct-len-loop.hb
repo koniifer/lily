@@ -15,10 +15,11 @@ Vec := struct {
 
 main := fn(): u8 {
 	vec := Vec.new()
+	len := vec.len
 	i: u8 = 0
 	loop if vec.len == 0 break else {
 		defer i += 1
 		_ = vec.pop()
 	}
-	return i
+	return i != len
 }
