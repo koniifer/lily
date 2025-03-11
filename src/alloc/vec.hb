@@ -16,7 +16,7 @@ Vec := fn(T: type, A: type): type return struct {
 					// todo: handle
 					die
 				}
-				self.slice = new_slice.?[0..self.slice.len]
+				self.slice.ptr = new_slice.?.ptr
 				self.cap = new_slice.?.len
 			} else {
 				new_slice := self.allocator.realloc(T, self.slice[0..self.cap], self.cap * 2)
@@ -24,12 +24,12 @@ Vec := fn(T: type, A: type): type return struct {
 					// todo: handle
 					die
 				}
-				self.slice = new_slice.?[0..self.slice.len]
+				self.slice.ptr = new_slice.?.ptr
 				self.cap = new_slice.?.len
 			}
 		}
 		self.slice[self.slice.len] = elem
-		self.slice = self.slice[0..self.slice.len + 1]
+		self.slice.len += 1
 	}
 
 	$len := fn(self: ^Self): uint {

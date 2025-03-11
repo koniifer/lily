@@ -7,8 +7,6 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	}
 
 	prefix_len := 0
-	// ! (compiler) bug: TypeOf(v): can't evaluate this at compile time (yet)
-	// if TypeOf(v).is_signed_int() & v < 0 {
 	if Type(@TypeOf(v)).is_signed_int() & v < 0 {
 		v = -v
 		// 0x2D == '-'
@@ -59,23 +57,42 @@ fmt_bool := fn(buf: []u8, v: bool): uint {
 	}
 }
 
-$format := fn(buf: []u8, v: @Any()): uint {
-	// T := TypeOf(v)
-	// T := Type(@TypeOf(v))
-	// $match T.kind() {
-	// 	.Pointer => return fmt_int(buf, @as(uint, @bit_cast(v)), 16),
-	// 	.Builtin => {
-	// 		if T.is_int() return fmt_int(buf, v, 10)
-	// 		if T.is_bool() return fmt_bool(buf, v, 10)
-	// 		if T.is_float() @error("todo: fmt_float")
-	// 	},
-	// 	.Struct => @error("todo: fmt_container"),
-	// 	.Tuple => @error("todo: fmt_container"),
-	// 	.Slice => @error("todo: fmt_container"),
-	// 	.Array => @error("todo: fmt_container"),
-	// 	.Optional => return @error("todo: fmt_optional"),
-	// 	.Enum => return @error("todo: fmt_enum"),
-	// 	_ => @error("formatting ", @TypeOf(v), " is not supported"),
-	// }
-	@error("todo:", format)
+fmt_optional := fn(buf: []u8, v: @Any()): uint {
+	if v != null return format(buf, @as(@ChildOf(@TypeOf(v)), v.?))
+
+	mem.copy(buf.ptr, @name_of(@TypeOf(v)).ptr, @name_of(@TypeOf(v)).len)
+	mem.copy(buf.ptr + @name_of(@TypeOf(v)).len, ".null".ptr, 5)
+	return @name_of(@TypeOf(v)).len + 5
+}
+
+// todo: cleanup
+fmt_enum := fn(buf: []u8, v: @Any()): uint {
+	T := @TypeOf(v)
+	len := @name_of(T).len
+	mem.copy(buf.ptr, @name_of(T).ptr, len)
+	mem.copy(buf.ptr + len, ".(".ptr, 2)
+	len += 2
+	len += fmt_int(buf[len..], @as(Type(T).USize(), @bit_cast(v)), 10)
+	mem.copy(buf.ptr + len, ")".ptr, 1)
+	return len + 1
+}
+
+format := fn(buf: []u8, v: @Any()): uint {
+	// $T := TypeOf(v)
+	T := Type(@TypeOf(v))
+	$match T.kind() {
+		.Pointer => return fmt_int(buf, @as(uint, @bit_cast(v)), 16),
+		.Builtin => {
+			$if T.is_int() return fmt_int(buf, v, 10)
+			$if T.is_bool() return fmt_bool(buf, v)
+			$if T.is_float() @error("todo: fmt_float")
+		},
+		.Struct => @error("todo: fmt_container"),
+		.Tuple => @error("todo: fmt_container"),
+		.Slice => @error("todo: fmt_container"),
+		.Array => @error("todo: fmt_container"),
+		.Optional => return fmt_optional(buf, v),
+		.Enum => return fmt_enum(buf, v),
+		_ => @error("formatting ", @TypeOf(v), " is not supported"),
+	}
 }
