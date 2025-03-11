@@ -26,30 +26,31 @@ Arena := struct {
 
 	Self := @CurrentScope()
 
-	$new := fn(): @CurrentScope() {
+	$new := fn(): Self {
 		return .(null)
 	}
-	// todo: handle alignment
 	alloc := fn(self: ^Self, $T: type, count: uint): ?[]T {
 		size := mem.size(T, count)
-		header: ^AllocationHeader = idk
+		header: ^AllocationHeader = @bit_cast(self.allocation)
+
 		if self.allocation == null {
 			new_header := AllocationHeader.new(size)
 			// todo: handle cleanly
 			if new_header == null die
 			self.allocation = new_header
 			header = @bit_cast(new_header)
-		} else {
-			header = @bit_cast(self.allocation)
 		}
 
 		loop {
+			lily.log.debug("arena.hb:45: if i dont print this it crashes")
 			if header.len + size <= header.cap {
 				header.len += size
 				break
 			}
 			if header.next == null {
 				header.next = AllocationHeader.new(size)
+				// todo: handle cleanly
+				if header.next == null die
 			}
 			header = @bit_cast(header.next)
 		}
@@ -77,7 +78,7 @@ Arena := struct {
 		allocation: ^AllocationHeader = @bit_cast(self.allocation)
 		loop {
 			next := allocation.next
-			target.dealloc(@bit_cast(allocation), allocation.cap)
+			target.dealloc(@bit_cast(allocation), allocation.cap + @size_of(AllocationHeader))
 			if next == null break
 			allocation = @bit_cast(next)
 		}

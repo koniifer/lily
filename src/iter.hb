@@ -1,3 +1,5 @@
+lily.{Type, alloc: .{Vec}} := @use("lib.hb")
+
 Next := fn(T: type): type return struct {
 	.finished: bool;
 	.val: T
@@ -11,29 +13,57 @@ Iterator := fn(T: type): type return struct {
 	IterNext := @TypeOf(T.next(idk))
 	IterVal := @TypeOf(T.next(idk).val)
 
-	$next := fn(self: ^@CurrentScope()): IterNext {
+	Self := @CurrentScope()
+
+	$next := fn(self: ^Self): IterNext {
 		return self.inner.next()
 	}
-	$map := fn(self: ^@CurrentScope(), $func: type): Iterator(Map(T, func)) {
+	$map := fn(self: ^Self, $func: type): Iterator(Map(T, func)) {
 		return .(.(self))
 	}
-	$enumerate := fn(self: ^@CurrentScope()): Iterator(Enumerate(T)) {
+	$enumerate := fn(self: ^Self): Iterator(Enumerate(T)) {
 		return .(.(self, 0))
 	}
-	$take := fn(self: ^@CurrentScope(), end: uint): Iterator(Take(T)) {
+	$take := fn(self: ^Self, end: uint): Iterator(Take(T)) {
 		return .(.(self, 0, end))
 	}
-	for_each := fn(self: ^@CurrentScope(), $func: type): void {
+	for_each := fn(self: ^Self, $func: type): void {
 		loop {
 			x := self.next()
 			if x.finished break
 			_ = func(x.val)
 		}
 	}
+	collect := fn(self: ^Self, $A: type): ?A {
+		$if Type(A).kind() != .Array {
+			@error("collecting", Self, "into type", A, "unsupported for now")
+		}
+		$if @ChildOf(A) != IterVal {
+			@error("cannot collect of iterator of type", IterVal, "into type", A)
+		}
+		cont: A = idk
+		i := 0
+		loop {
+			defer i += 1
+			x := self.next()
+			if i == @len_of(A) & x.finished return cont
+			if i == @len_of(A) | x.finished return null
+			cont[i] = x.val
+		}
+	}
+	// ! broken
+	collect_vec := fn(self: ^Self, allocator: @Any()): Vec(IterVal, @ChildOf(@TypeOf(allocator))) {
+		vec := Vec(IterVal, @ChildOf(@TypeOf(allocator))).new(allocator)
+		loop {
+			x := self.next()
+			if x.finished return vec
+			vec.push(x.val)
+		}
+	}
 }
 
 Map := fn(T: type, func: type): type return struct {
-	.iter: Iterator(T)
+	.iter: ^Iterator(T)
 	IterNext := @TypeOf(func(idk))
 
 	$next := fn(self: ^@CurrentScope()): Next(IterNext) {
