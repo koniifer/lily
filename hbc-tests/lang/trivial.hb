@@ -1,5 +1,5 @@
-expected := .{
-	exit: 0,
+expectations := .{
+    return_value: 0,
 }
 
 main := fn(): u8 {

@@ -1,5 +1,5 @@
 expectations := .{
-	return_value: 0,
+    return_value: 0,
 }
 
 TypeOf := fn(v: @Any()): type return Generic(@TypeOf(v))

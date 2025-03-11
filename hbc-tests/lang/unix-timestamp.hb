@@ -1,5 +1,5 @@
-expected := .{
-	exit: 0,
+expectations := .{
+    return_value: 0,
 }
 
 sum_days := uint.[0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]

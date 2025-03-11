@@ -1,6 +1,5 @@
-expected := .{
-	exit: 10,
-	timeout: 1.0,
+expectations := .{
+    return_value: 0,
 }
 
 Vec := struct {

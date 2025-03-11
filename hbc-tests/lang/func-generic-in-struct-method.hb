@@ -3,11 +3,13 @@ expectations := .{
 }
 
 A := struct {
-	apply := fn(self: ^@CurrentScope(), $func: type): void {
+	apply := fn(self: ^@CurrentScope(), $func: type): uint {
+		return func()
     }
 }
 
-main := fn(): void {
-	return A.().apply(fn(): void {
+main := fn(): uint {
+	return A.().apply(fn(): uint {
+		return 0
 	})
 }

@@ -1,5 +1,5 @@
-expected := .{
-	exit: 0,
+expectations := .{
+    return_value: 0,
 }
 
 index := fn(buf: @Any()): u8 {
