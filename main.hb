@@ -1,6 +1,6 @@
 lily.{fmt, log, mem, alloc, target} := @use("lily")
 
-b: []u8 = idk
+b: []u8 = &.[]
 
 main := fn(): void {
 	arena := alloc.Arena.new()

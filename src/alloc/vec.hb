@@ -6,7 +6,7 @@ Vec := fn(T: type, A: type): type return struct {
 	Self := @CurrentScope()
 
 	$new := fn(allocator: ^A): Self {
-		return .(idk, 0, allocator)
+		return .(&.[], 0, allocator)
 	}
 	push := fn(self: ^Self, elem: T): void {
 		if self.slice.len == self.cap {
