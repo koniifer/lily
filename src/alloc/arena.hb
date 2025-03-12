@@ -42,7 +42,7 @@ Arena := struct {
 		}
 
 		loop {
-			lily.log.debug("arena.hb:45: if i dont print this it crashes")
+			// lily.log.debug("arena.hb:45: if i dont print this it crashes")
 			if header.len + size <= header.cap {
 				header.len += size
 				break
@@ -72,7 +72,7 @@ Arena := struct {
 	}
 	deinit := fn(self: ^Self): void {
 		if self.allocation == null {
-			lily.log.error("fixme: double free arena. can't fix due to compiler.")
+			// lily.log.error("fixme: double free arena. can't fix due to compiler.")
 			die
 		}
 		allocation: ^AllocationHeader = @bit_cast(self.allocation)
