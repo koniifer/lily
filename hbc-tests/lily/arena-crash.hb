@@ -1,6 +1,13 @@
+expectations := .{
+	return_value: 5,
+    ecalls: .(
+        .(3, 2): 1,
+    ),
+}
+
 lily.{fmt, log, mem, alloc, target} := @use("../../src/lib.hb")
 
-main := fn(): void {
+main := fn(): uint {
 	arena := alloc.Arena.new()
 	defer arena.deinit()
 
@@ -8,4 +15,5 @@ main := fn(): void {
 
 	iter := mem.bytes(mem.reverse("Hello, World!")[1..]).take(5)
 	str := iter.collect_vec(&arena)
+	return str.len()
 }
