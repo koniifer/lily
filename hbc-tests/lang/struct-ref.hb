@@ -12,8 +12,6 @@ Struct := struct {
 
 main := fn(): uint {
 	a := Struct.(null)
-	// ! (compiler) bug: adding type here makes
-	// ! self get passed by value and not by ref
 	a.modify(void)
 	if a.inner == null return 1
 

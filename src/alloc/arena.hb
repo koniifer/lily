@@ -42,7 +42,6 @@ Arena := struct {
 		}
 
 		loop {
-			// lily.log.debug("arena.hb:45: if i dont print this it crashes")
 			if header.len + size <= header.cap {
 				header.len += size
 				break
@@ -59,21 +58,20 @@ Arena := struct {
 	$alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?[]T {
 		slice := self.alloc(T, count)
 		if slice == null return null
-		mem.set(slice.?.ptr, 0, slice.?.len)
+		mem.set(mem.as_bytes(slice.?), 0)
 		return slice
 	}
 	$realloc := fn(self: ^Self, $T: type, prev: []T, count_new: uint): ?[]T {
-		slice := self.alloc(T, mem.size(T, count_new))
+		slice := self.alloc(T, count_new)
 		if slice == null return null
-		mem.copy(@bit_cast(slice.?.ptr), @bit_cast(prev.ptr), mem.size(T, prev.len))
+		mem.copy(mem.as_bytes(slice.?), mem.as_bytes(prev))
 		return slice
 	}
 	$dealloc := fn(self: ^Self, $T: type, prev: []T): void {
 	}
 	deinit := fn(self: ^Self): void {
 		if self.allocation == null {
-			// lily.log.error("fixme: double free arena. can't fix due to compiler.")
-			die
+			return
 		}
 		allocation: ^AllocationHeader = @bit_cast(self.allocation)
 		loop {

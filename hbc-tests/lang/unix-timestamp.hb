@@ -1,5 +1,5 @@
 expectations := .{
-    return_value: 0,
+	return_value: 0,
 }
 
 sum_days := uint.[0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]
@@ -7,7 +7,7 @@ sum_days := uint.[0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]
 unix_timestamp_secs_lookup_table := fn(year: uint, month: uint, day: uint, hour: uint, minute: uint, second: uint): uint {
 	is_leap := year % 4 == 0 & (year % 100 != 0 | year % 400 == 0)
 	days_since_epoch := year * 365 + (year - 1) / 4 - (year - 1) / 100 + (year - 1) / 400 - 719527
-	total_days := days_since_epoch + day + sum_days[month - 1] + is_leap * (month > 2) - 1;
+	total_days := days_since_epoch + day + sum_days[month - 1] + is_leap * (month > 2) - 1
 	return total_days * 86400 + hour * 3600 + minute * 60 + second
 }
 

@@ -1,5 +1,5 @@
 expectations := .{
-    return_value: 0,
+	return_value: 0,
 }
 
 generic := fn(v: @Any()): uint {

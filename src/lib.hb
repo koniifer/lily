@@ -6,6 +6,18 @@ mem := @use("mem.hb")
 log := @use("log.hb")
 fmt := @use("fmt.hb")
 
+config := struct {
+	$DEBUG := true
+	$MIN_LOGLEVEL := log.LogLevel.Info
+	// sufficent for now.
+	$FMT_BUFFER_SIZE := 256
+
+	$min_loglevel := fn(): log.LogLevel {
+		$if config.DEBUG & config.MIN_LOGLEVEL < .Debug return .Debug
+		return config.MIN_LOGLEVEL
+	}
+}
+
 Version := struct {
 	.major: uint;
 	.minor: uint;

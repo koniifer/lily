@@ -1,11 +1,11 @@
 expectations := .{
 	return_value: 5,
-    ecalls: .(
-        .(3, 2): 1,
-    ),
+	ecalls: .(
+		.(3, 2): 1,
+	),
 }
 
-lily.{fmt, log, mem, alloc, target} := @use("../../src/lib.hb")
+lily.{mem, alloc} := @use("../../src/lib.hb")
 
 main := fn(): uint {
 	arena := alloc.Arena.new()
@@ -13,7 +13,7 @@ main := fn(): uint {
 
 	_ = arena.alloc(u8, 1).?
 
-	iter := mem.bytes(mem.reverse("Hello, World!")[1..]).take(5)
+	iter := mem.iter(mem.reverse("Hello, World!")[1..]).take(5)
 	str := iter.collect_vec(&arena)
 	return str.len()
 }

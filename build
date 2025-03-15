@@ -4,18 +4,19 @@ set -u
 # shellcheck disable=SC2155
 readonly LILY_SCRIPT_DIR="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
 readonly LILY_SRC_DIR="${LILY_SRC_DIR:-$LILY_SCRIPT_DIR/src}"
-readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/test}"
+readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.us/mlokis/hblang"
-readonly HBLANG_COMMIT="78bb8ef107d6fa9944632eee98863b4d10023396"
+readonly HBLANG_COMMIT="ee74cf6b3a7bf5b0c149147c737ab685d4dc215e"
 readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
 readonly HBC_BINARY="hbc"
+readonly HBC_TESTS="${HBC_TESTS:-0}"
 
-die() { error "$2" && exit "$1"; }
-error() { printf "\033[31mERROR\033[0m: %s\n" "$1" 1>&2; }
-log() { printf "\033[32mINFO\033[0m: %s\n" "$1" 1>&2; }
-warn() { printf "\033[33mWARN\033[0m: %s\n" "$1" 1>&2; }
+die() { error "$2" 1>&2 && exit "$1"; }
+error() { printf "\033[31mERROR\033[0m: %b\n" "$1"; }
+log() { printf "\033[32mINFO\033[0m: %b\n" "$1"; }
+warn() { printf "\033[33mWARN\033[0m: %b\n" "$1"; }
 
 fetch_step() {
     command -v zig >/dev/null 2>&1 || die 101 "'zig' binary not found in PATH"
@@ -46,7 +47,8 @@ fetch_step() {
         git checkout -f "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to checkout commit"
     fi
 
-    zig build install >/dev/null 2>&1 || die 1 "failed to build hblang"
+    # do not build with optimisations if you want to report bugs.
+    zig build install >/dev/null || die $? "failed to build hblang. exit code=$?"
 
     PATH="$hblang_dir/zig-out/bin:$PATH"
     cd "$LILY_SCRIPT_DIR" || die 1 "failed to return to script directory"
@@ -56,11 +58,56 @@ main() {
     mkdir -p "$LILY_BUILD_DIR" || die 1 "failed to create build directory"
     fetch_step
 
+    do_test() {
+        # shellcheck disable=SC2086
+        $HBC_BINARY $HBC_FLAGS --vendored-test "$file" >"$LILY_BUILD_DIR/$test_name.test" 2>&1
+        exit="$?"
+        if [ ! $exit = 0 ]; then
+            error "\e[1;31m⨯\033[0m $test_name \e[1;30m(exit=\e[1;31m$exit\e[1;30m) ($(basename "$LILY_BUILD_DIR")/$test_name.test)"
+            echo "0" >>"$result_file"
+        else
+            # shellcheck disable=SC2086
+            len=$($HBC_BINARY $HBC_FLAGS "$file" | wc -c | numfmt --to=iec-i)
+            log "✓ $test_name \e[1;30m(size=\e[1;32m$len\e[1;30m)"
+            # log "\e[0;32m✓\033[0m $test_name"
+            echo "1" >>"$result_file"
+            # surely good idea.
+            rm "$LILY_BUILD_DIR/$test_name.test"
+            # shellcheck disable=SC2086
+            $HBC_BINARY $HBC_FLAGS "$file" --fmt >/dev/null 2>&1
+        fi
+    }
+
+    if [ "$HBC_TESTS" = 1 ]; then
+        tmpfile=$(mktemp)
+        result_file=$(mktemp)
+        find "$LILY_TEST_DIR" -type f >"$tmpfile"
+        while IFS= read -r file; do
+            # test_name=$(basename "$file" .hb)
+            test_name=$(echo "$(basename -- "$(dirname -- "$file")")/$(basename -- "$file" .hb)" | tr '/' '.')
+            do_test 2>/dev/null &
+        done <"$tmpfile"
+        rm -f "$tmpfile"
+        wait
+
+        failures=$(grep -c "0" "$result_file")
+        successes=$(grep -c "1" "$result_file")
+
+        rm -f "$result_file"
+
+        if [ "$failures" = 0 ]; then
+            log "$successes/$((successes + failures)) tests passed"
+        else
+            warn "\e[0;31m$successes\033[0m/$((successes + failures)) tests passed"
+        fi
+        exit
+    fi
+
     inp="${1:-main.hb}"
     [ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
 
     # shellcheck disable=SC2086
-    if $HBC_BINARY $HBC_FLAGS "$inp"; then
+    if $HBC_BINARY $HBC_FLAGS "$inp" >"$LILY_BUILD_DIR/out.axe"; then
         $HBC_BINARY $HBC_FLAGS "$inp" --fmt >/dev/null 2>&1
     else
         exit $?

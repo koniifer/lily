@@ -27,11 +27,34 @@ Iterator := fn(T: type): type return struct {
 	$take := fn(self: ^Self, end: uint): Iterator(Take(T)) {
 		return .(.(self, 0, end))
 	}
+	$skip := fn(self: ^Self, n: uint): Iterator(Skip(T)) {
+		return .(.(self, n))
+	}
+	$chain := fn(self: ^Self, rhs: @Any()): Iterator(Chain(T, @TypeOf(rhs))) {
+		return .(.(self, rhs, .Iter0))
+	}
 	for_each := fn(self: ^Self, $func: type): void {
 		loop {
 			x := self.next()
 			if x.finished break
 			_ = func(x.val)
+		}
+	}
+	fold := fn(self: ^Self, $func: type, sum: @Any()): @TypeOf(sum) {
+		loop {
+			x := self.next()
+			if x.finished return sum
+			sum = func(sum, x.val)
+		}
+	}
+	nth := fn(self: ^Self, n: uint): ?IterVal {
+		i := 0
+		loop {
+			defer i += 1
+			x := self.next()
+			if x.finished return null else {
+				if i == n return x.val
+			}
 		}
 	}
 	collect := fn(self: ^Self, $A: type): ?A {
@@ -95,5 +118,55 @@ Take := fn($T: type): type return struct {
 		x: Next(IterNext) = idk
 		if self.n > self.end return .(true, x.val)
 		return self.iter.inner.next()
+	}
+}
+
+Skip := fn($T: type): type return struct {
+	.iter: ^Iterator(T);
+	.step: uint
+	IterNext := @TypeOf(T.next(idk).val)
+
+	$next := fn(self: ^@CurrentScope()): Next(IterNext) {
+		n := 0
+		loop {
+			x := self.iter.next()
+			if n == self.step | x.finished return x
+			n += 1
+		}
+	}
+}
+
+Chain := fn($A: type, $B: type): type {
+	Iter0Next := @TypeOf(A.next(idk).val)
+	Iter1Next := @TypeOf(B.next(idk).val)
+
+	$if Iter0Next != Iter1Next @error(Iter0Next, " != ", Iter1Next)
+
+	return struct {
+		.iter0: ^Iterator(A)
+		/* todo: ^B? */;
+		.iter1: B;
+		.state: enum{.Iter0; .Iter0Finished; .BothFinished}
+
+		next := fn(self: ^@CurrentScope()): Next(Iter0Next) {
+			// todo: replace with Type(T).uninit()
+			x: Next(Iter0Next) = idk
+			match self.state {
+				.Iter0 => {
+					x = self.iter0.inner.next()
+					if x.finished {
+						self.state = .Iter0Finished
+						return self.next()
+					}
+				},
+				.Iter0Finished => {
+					x = self.iter1.inner.next()
+					if x.finished self.state = .BothFinished
+				},
+				_ => {
+				},
+			}
+			return .(self.state == .BothFinished, x.val)
+		}
 	}
 }

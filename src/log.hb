@@ -1,4 +1,4 @@
-.{target} := @use("lib.hb")
+.{target, config, fmt} := @use("lib.hb")
 
 LogLevel := enum {
 	.Error;
@@ -9,6 +9,9 @@ LogLevel := enum {
 }
 
 $log := fn(level: LogLevel, str: []u8): void {
+	if level > config.min_loglevel() {
+		return
+	}
 	$match target.current() {
 		.AbleOS => return @ecall(3, 1, target.LogEcall.(level, str.ptr, str.len), @size_of(target.LogEcall)),
 	}
@@ -19,3 +22,16 @@ $warn := fn(message: []u8): void return log(.Warn, message)
 $info := fn(message: []u8): void return log(.Info, message)
 $debug := fn(message: []u8): void return log(.Debug, message)
 $trace := fn(message: []u8): void return log(.Trace, message)
+
+fmt_buffer: [config.FMT_BUFFER_SIZE]u8 = idk
+
+print := fn(any: @Any()): void {
+	$if @TypeOf(any) == []u8 {
+		$match target.current() {
+			.AbleOS => info(any),
+		}
+	} else {
+		len := fmt.format(fmt_buffer[..], any)
+		info(fmt_buffer[..len])
+	}
+}

@@ -1,11 +1,11 @@
 expectations := .{
-    return_value: 0,
+	return_value: 0,
 }
 
 A := struct {
 	apply := fn(self: ^@CurrentScope(), $func: type): uint {
 		return func()
-    }
+	}
 }
 
 main := fn(): uint {
