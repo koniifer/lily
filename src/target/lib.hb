@@ -1,4 +1,4 @@
-.{
+lib.{
 	LogEcall,
 	pages,
 	page_len,
@@ -9,6 +9,7 @@
 	memcopy,
 	memmove,
 	memset,
+	memfill,
 	exit,
 	fill_rand,
 	fork,

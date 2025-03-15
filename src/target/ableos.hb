@@ -5,7 +5,6 @@ LogEcall := struct align(1){.level: LogLevel; .str_ptr: ^u8; .str_len: uint}
 $page_len := fn(): uint {
 	return 4096
 }
-
 $pages := fn(len: uint): uint {
 	return (len + page_len() - 1) / page_len()
 }
@@ -14,7 +13,6 @@ AllocEcall := struct align(1){.pad: u8; .pages_new: uint; .zeroed: bool}
 $alloc := fn(len: uint): ?^u8 {
 	return @ecall(3, 2, AllocEcall.(0, pages(len), false), @size_of(AllocEcall))
 }
-
 $alloc_zeroed := fn(len: uint): ?^u8 {
 	return @ecall(3, 2, AllocEcall.(0, pages(len), true), @size_of(AllocEcall))
 }
@@ -37,12 +35,19 @@ $memmove := fn(dest: ^u8, src: ^u8, len: uint): void {
 	@ecall(3, 2, CopyEcall.(6, len, src, dest), @size_of(CopyEcall))
 }
 
-SetEcall := struct align(1){.pad: u8; .count: uint; .len: uint; .src: ^u8; .dest: ^u8}
+FillEcall := struct align(1){.pad: u8; .count: uint; .len: uint; .src: ^u8; .dest: ^u8}
 $memset := fn(dest: ^u8, src: u8, len: uint): void {
-	@ecall(3, 2, SetEcall.(5, len, 1, &src, dest), @size_of(SetEcall))
+	@ecall(3, 2, FillEcall.(5, len, 1, &src, dest), @size_of(FillEcall))
+}
+$memfill := fn(dest: ^u8, src: ^u8, count: uint, len: uint): void {
+	@ecall(3, 2, FillEcall.(5, count, len, src, dest), @size_of(FillEcall))
 }
 
 $exit := fn(code: u8): void {
 }
 $fill_rand := fn(dest: ^u8, len: uint): void return @ecall(3, 4, dest, len)
 $fork := fn(): uint return @ecall(3, 7)
+
+$dt_get := fn($T: type, query: []u8): T {
+	return @ecall(3, 5, query.ptr, query.len)
+}

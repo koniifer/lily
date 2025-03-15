@@ -60,6 +60,16 @@ $set := fn(dest: []u8, src: u8): void {
 	target.memset(dest.ptr, src, dest.len)
 }
 
+$fill := fn(dest: []u8, src: []u8): void {
+	$if config.DEBUG {
+		if src.len > dest.len | overlaps(dest, src) {
+			log.error("mem.copy: regions overlap or src bigger than dest or align bad")
+			die
+		}
+	}
+	target.memfill(dest.ptr, src.ptr, dest.len / src.len, src.len)
+}
+
 equals := fn(lhs: []u8, rhs: []u8): bool {
 	if lhs.len != rhs.len return false
 	if lhs.ptr == rhs.ptr return true
