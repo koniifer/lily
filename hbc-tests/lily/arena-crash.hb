@@ -1,8 +1,6 @@
 expectations := .{
 	return_value: 5,
-	ecalls: .(
-		.(3, 2): 1,
-	),
+	emulate_ecalls: true,
 }
 
 lily.{mem, alloc} := @use("../../src/lib.hb")

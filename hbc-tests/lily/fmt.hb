@@ -1,5 +1,6 @@
 expectations := .{
 	return_value: 0,
+	emulate_ecalls: true,
 }
 
 lily.{fmt} := @use("../../src/lib.hb")
