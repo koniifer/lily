@@ -7,3 +7,4 @@ a collection of guidelines for programmers to use to create lily-compatible impl
 the following files define the spec:
 - [allocators](./spec/alloc.md)
 - [iterators](./spec/iter.md)
+- [tests](./spec/tests.md)

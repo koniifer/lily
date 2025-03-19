@@ -34,6 +34,17 @@ $as_bytes := fn(v: @Any()): []u8 {
 	}
 }
 
+$to_owned := fn($T: type, slice: []u8): T {
+	$match Type(T).kind() {
+		.Array => {
+			ret: T = idk
+			copy(ret[..], slice)
+			return ret
+		},
+		_ => @error("todo: write this error"),
+	}
+}
+
 $overlaps := fn(lhs: []u8, rhs: []u8): bool {
 	return lhs.ptr < rhs.ptr + rhs.len & rhs.ptr < lhs.ptr + lhs.len
 }

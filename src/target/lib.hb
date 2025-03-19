@@ -11,8 +11,16 @@ lib.{
 	memset,
 	memfill,
 	exit,
-	fill_rand,
-	fork,
+	rand_fill,
+	proc_fork,
+	proc_spawn,
+	buf_create_named,
+	buf_create,
+	buf_destroy,
+	buf_search,
+	buf_await,
+	buf_read,
+	buf_write,
 } := Lib(current())
 
 Target := enum {

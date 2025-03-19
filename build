@@ -8,7 +8,7 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.us/mlokis/hblang"
-readonly HBLANG_COMMIT="4bd1d3a4e1040b36f9185cf3ebedb99b1ad17ac6"
+readonly HBLANG_COMMIT="dd46d8a2d505ea8611f6c5b44c08131bb3abf220"
 readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
 readonly HBC_BINARY="hbc"
 readonly HBC_TESTS="${HBC_TESTS:-0}"
@@ -83,8 +83,8 @@ main() {
         result_file=$(mktemp)
         find "$LILY_TEST_DIR" -type f >"$tmpfile"
         while IFS= read -r file; do
-            # test_name=$(basename "$file" .hb)
-            test_name=$(echo "$(basename -- "$(dirname -- "$file")")/$(basename -- "$file" .hb)" | tr '/' '.')
+            test_name=$(realpath -s --relative-to="$LILY_TEST_DIR" "$file" | tr '/' '.')
+            test_name="${test_name%.*}"
             do_test 2>/dev/null &
         done <"$tmpfile"
         rm -f "$tmpfile"
