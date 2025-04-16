@@ -81,12 +81,11 @@ Type := fn($T: type): type return struct {
 	}
 	/// `Kind` disambiguates `.Slice` and `.Array`
 	$kind := fn(): Kind {
-		raw := Type(T).raw_kind()
-		$match raw {
+		$match Self.raw_kind() {
 			.SliceOrArray => $if []@ChildOf(T) == T return .Slice else return .Array,
 			_ => $if @kind_of(T) > @bit_cast(RawKind.SliceOrArray) {
 				return @bit_cast(@kind_of(T) + 1)
-			} else return @bit_cast(raw),
+			} else return @bit_cast(@kind_of(T)),
 		}
 	}
 }
