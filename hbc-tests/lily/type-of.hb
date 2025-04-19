@@ -4,11 +4,14 @@ expectations := .{
 
 lily.{TypeOf} := @use("../../src/lib.hb")
 
+dependent := fn(v: @Any()): uint {
+  $T := TypeOf(v)
+  $match T.kind() {
+    .Builtin => return 0,
+    _ => return 1
+  }
+}
+
 main := fn(): uint {
-	$match TypeOf(@as(uint, 1)).kind() {
-		.Builtin => {
-		},
-		_ => return 1,
-	}
-	return 0
+	return dependent(@as(uint, 100))
 }
