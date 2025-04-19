@@ -8,9 +8,6 @@ lily.{mem} := @use("../../src/lib.hb")
 A := struct{.a: u8 = 51; .b: u8 = 42; .c: u8 = 77}
 
 main := fn(): uint {
-	// bytes := mem.to_owned([3]u8, mem.as_bytes(&A.{}))
-	// ! the above one works, the below one doesnt.
-	// ! i think this may be a vm problem?
 	bytes := mem.as_bytes(&A.{})
 	if bytes.len != 3 return 1
 	if bytes[0] != 51 return 51
