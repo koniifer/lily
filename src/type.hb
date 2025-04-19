@@ -55,7 +55,7 @@ Type := fn($T: type): type return struct {
 		return T == int | T == i8 | T == i16 | T == i32
 	}
 	$is_int := fn(): bool {
-		return Self.is_unsigned_int() | Self.is_signed_int()
+		return is_unsigned_int() | is_signed_int()
 	}
 	$is_float := fn(): bool {
 		return T == f32 | T == f64
@@ -69,10 +69,10 @@ Type := fn($T: type): type return struct {
 	$size := fn(): uint {
 		return @size_of(T)
 	}
-	$bits := fn(): Self.USize() {
+	$bits := fn(): USize() {
 		return @size_of(T) << 3
 	}
-	$bitmask := fn(): Self.USize() {
+	$bitmask := fn(): USize() {
 		return ~0
 	}
 	/// `RawKind` does not disambiguate `.SliceOrArray`
@@ -81,7 +81,7 @@ Type := fn($T: type): type return struct {
 	}
 	/// `Kind` disambiguates `.Slice` and `.Array`
 	$kind := fn(): Kind {
-		$match Self.raw_kind() {
+		$match raw_kind() {
 			.SliceOrArray => $if []@ChildOf(T) == T return .Slice else return .Array,
 			_ => $if @kind_of(T) > @bit_cast(RawKind.SliceOrArray) {
 				return @bit_cast(@kind_of(T) + 1)

@@ -24,12 +24,10 @@ $dangling := fn($T: type): ^T {
 }
 
 $as_bytes := fn(v: @Any()): []u8 {
-	$match Type(@TypeOf(v)).kind() {
-		.Pointer => return @as(^u8, @bit_cast(v))[..@size_of(@ChildOf(@TypeOf(v)))],
-		.Slice => return @as(^u8, @bit_cast(v.ptr))[..size(
-			@ChildOf(@TypeOf(v)),
-			v.len,
-		)],
+	$T := @TypeOf(v)
+	$match Type(T).kind() {
+		.Pointer => return @as(^u8, @bit_cast(v))[..@size_of(@ChildOf(T))],
+		.Slice => return @as(^u8, @bit_cast(v.ptr))[..@size_of(@ChildOf(T)) * v.len],
 		_ => @error(@TypeOf(v), " is not a pointer or a slice."),
 	}
 }
