@@ -22,5 +22,4 @@ an attempt at a cross-platform standard library for hblang.
 - random number generators
 - math operations
 - collections (Hashmap, Vec)
-- better allocators
 - result type
