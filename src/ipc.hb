@@ -20,6 +20,12 @@ Buffer := struct {
 		if id == 0 return null
 		return Self.from_raw(id)
 	}
+	connect := fn(name: []u8): Self {
+		loop {
+			id := target.buf_search(name)
+			if id != 0 return Self.from_raw(id)
+		}
+	}
 	deinit := fn(self: ^Self): void {
 		target.buf_destroy(self.id)
 		self.* = idk
@@ -59,6 +65,22 @@ Channel := struct {
 		remote := Buffer.new(remote_name)
 		if remote == null return null
 		return .(local.?, remote.?)
+	}
+	search := fn(local_name: []u8, remote_name: []u8): ?Self {
+		local := Buffer.search(local_name)
+		if local == null return null
+		remote := Buffer.search(remote_name)
+		if remote == null return null
+		return .(local.?, remote.?)
+	}
+	connect := fn(local_name: []u8, remote_name: []u8): Self {
+		local: ?Buffer = null
+		remote: ?Buffer = null
+		loop {
+			if local == null local = Buffer.search(local_name)
+			if remote == null remote = Buffer.search(remote_name)
+			if (local != null) & (remote != null) return .(local.?, remote.?)
+		}
 	}
 	$deinit := fn(self: ^Self): void {
 		self.local.deinit()
