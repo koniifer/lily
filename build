@@ -7,9 +7,9 @@ readonly LILY_SRC_DIR="${LILY_SRC_DIR:-$LILY_SCRIPT_DIR/src}"
 readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
-readonly HBLANG_GIT="https://git.ablecorp.us/mlokis/hblang"
-readonly HBLANG_COMMIT="c5a6582d12d62816fcbdbec4d949656fd6d88b39"
-readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
+readonly HBLANG_GIT="https://github.com/jakubDoka/hblang"
+readonly HBLANG_COMMIT="cb54bb65eb6539fdaebb4c6d48365aa747cba253"
+readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-} --target ableos"
 readonly HBC_BINARY="hbc"
 readonly HBC_TESTS="${HBC_TESTS:-0}"
 

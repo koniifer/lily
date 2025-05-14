@@ -79,7 +79,7 @@ Channel := struct {
 		loop {
 			if local == null local = Buffer.search(local_name)
 			if remote == null remote = Buffer.search(remote_name)
-			if (local != null) & (remote != null) return .(local.?, remote.?)
+			if local != null & remote != null return .(local.?, remote.?)
 		}
 	}
 	$deinit := fn(self: ^Self): void {

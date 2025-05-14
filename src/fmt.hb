@@ -72,7 +72,6 @@ fmt_enum := fn(buf: []u8, v: @Any()): uint {
 }
 
 format := fn(buf: []u8, v: @Any()): uint {
-	// $T := TypeOf(v)
 	T := Type(@TypeOf(v))
 	$match T.kind() {
 		.Pointer => return fmt_int(buf, @as(uint, @bit_cast(v)), 16),

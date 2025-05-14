@@ -1,8 +1,8 @@
 # lily
-an attempt at a cross-platform standard library for hblang.
+an attempt at a cross-platform standard library for [hblang](https://git.ablecorp.us/mlokis/hblang). ([alternative repo](https://github.com/jakubDoka/hblang)).
 
 > [!caution]
-> 0.1.x currently only supports ableos target, as the new hblang compiler does not support native compilation yet.
+> 0.1.x currently only supports ableos target, as the new hblang compiler does not fully support native compilation yet.
 
 > [!important]
 > all features, targets, modules, etc, are provisional and may be subject to change or deletion

@@ -33,14 +33,14 @@ Iterator := fn(T: type): type return struct {
 	$chain := fn(self: ^Self, rhs: @Any()): Iterator(Chain(T, @TypeOf(rhs))) {
 		return .(.(self, rhs, .Iter0))
 	}
-	for_each := fn(self: ^Self, $func: type): void {
+	$for_each := fn(self: ^Self, $func: type): void {
 		loop {
 			x := self.next()
 			if x.finished break
 			_ = func(x.val)
 		}
 	}
-	fold := fn(self: ^Self, $func: type, sum: @Any()): @TypeOf(sum) {
+	$fold := fn(self: ^Self, $func: type, sum: @Any()): @TypeOf(sum) {
 		loop {
 			x := self.next()
 			if x.finished return sum

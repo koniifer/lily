@@ -1,2 +1,2 @@
-arena.{Arena} := @use("arena.hb")
+Arena := @use("Arena.hb")
 vec.{Vec} := @use("vec.hb")
