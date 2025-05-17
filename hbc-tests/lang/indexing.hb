@@ -8,7 +8,7 @@ index := fn(buf: @Any()): u8 {
 	return b
 }
 
-main := fn(): u8 {
+main := fn(): uint {
 	_ = @inline(index, u8.[0, 0, 0])
 	_ = @inline(index, u8.[0, 0, 0][0..3])
 	_ = index(u8.[0, 0, 0])

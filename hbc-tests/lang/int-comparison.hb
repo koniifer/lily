@@ -10,7 +10,7 @@ opaque2 := fn(v: @Any()): bool {
 	return v > 0
 }
 
-main := fn(): u8 {
+main := fn(): uint {
 	v: int = -10
 
 	if !opaque(v) return 1

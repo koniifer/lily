@@ -44,6 +44,7 @@ $memfill := fn(dest: ^u8, src: ^u8, count: uint, len: uint): void {
 }
 
 $exit := fn(code: u8): void {
+	@error("todo: exit for target \"ableos\"")
 }
 
 $rand_fill := fn(dest: ^u8, len: uint): void return @ecall(3, 4, dest, len)

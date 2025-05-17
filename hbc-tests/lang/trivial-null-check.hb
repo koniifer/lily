@@ -10,7 +10,7 @@ $transparent := fn(): ?^u8 {
 	return null
 }
 
-main := fn(): u8 {
+main := fn(): uint {
 	result := opaque()
 	if result != null {
 		return 1

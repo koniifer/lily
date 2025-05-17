@@ -8,8 +8,8 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://github.com/jakubDoka/hblang"
-readonly HBLANG_COMMIT="cb54bb65eb6539fdaebb4c6d48365aa747cba253"
-readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-} --target ableos"
+readonly HBLANG_COMMIT="158d6f78feadae12f3e01fa2a0e1c3923c917a2e"
+readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
 readonly HBC_BINARY="hbc"
 readonly HBC_TESTS="${HBC_TESTS:-0}"
 

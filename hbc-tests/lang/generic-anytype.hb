@@ -9,7 +9,7 @@ generic := fn(v: @Any()): uint {
 	return 0
 }
 
-main := fn(): u8 {
+main := fn(): uint {
 	a := generic(0)
 	b := generic(@as(int, 0))
 	if a != 1 return 1

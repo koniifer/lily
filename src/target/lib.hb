@@ -1,4 +1,4 @@
-lib.{
+.{
 	LogEcall,
 	pages,
 	page_len,
@@ -21,22 +21,23 @@ lib.{
 	buf_await,
 	buf_read,
 	buf_write,
-} := Lib(current())
+} := lib()
 
 Target := enum {
 	.AbleOS;
+	.Unknown;
 }
 
 current := fn(): Target {
 	$if @target("ableos") {
 		return .AbleOS
-	} else {
-		@error("Unknown Target")
 	}
+	return .Unknown
 }
 
-Lib := fn(target: Target): type {
-	$match target {
+lib := fn(): type {
+	$match current() {
 		.AbleOS => return @use("ableos.hb"),
+		.Unknown => return @use("unknown.hb"),
 	}
 }

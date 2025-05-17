@@ -32,6 +32,8 @@ print := fn(any: @Any()): void {
 		}
 	} else {
 		len := fmt.format(fmt_buffer[..], any)
-		info(fmt_buffer[..len])
+		$match target.current() {
+			.AbleOS => info(any),
+		}
 	}
 }

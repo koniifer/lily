@@ -13,7 +13,7 @@ Vec := struct {
 	}
 }
 
-main := fn(): u8 {
+main := fn(): uint {
 	vec := Vec.new()
 	len := vec.len
 	i: u8 = 0
