@@ -8,7 +8,7 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://github.com/jakubDoka/hblang"
-readonly HBLANG_COMMIT="7461165bd43b4eb746d221efe2a2ded40d282d2d"
+readonly HBLANG_COMMIT="d8a1a252eb04ad878d69463ef8a94c2fb3be0bbe"
 readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
 readonly HBC_BINARY="hbc"
 readonly HBC_TESTS="${HBC_TESTS:-0}"
@@ -19,99 +19,99 @@ log() { printf "\033[32mINFO\033[0m: %b\n" "$1"; }
 warn() { printf "\033[33mWARN\033[0m: %b\n" "$1"; }
 
 fetch_step() {
-  command -v zig >/dev/null 2>&1 || die 101 "'zig' binary not found in PATH"
-  command -v git >/dev/null 2>&1 || die 101 "'git' binary not found in PATH"
+	command -v zig >/dev/null 2>&1 || die 101 "'zig' binary not found in PATH"
+	command -v git >/dev/null 2>&1 || die 101 "'git' binary not found in PATH"
 
-  hblang_dir="$LILY_BUILD_DIR/hblang"
-  mkdir -p "$hblang_dir" || die 1 "failed to create hblang directory"
+	hblang_dir="$LILY_BUILD_DIR/hblang"
+	mkdir -p "$hblang_dir" || die 1 "failed to create hblang directory"
 
-  if [ -d "$hblang_dir/.git" ]; then
-    cd "$hblang_dir" || die 1 "failed to enter hblang directory"
+	if [ -d "$hblang_dir/.git" ]; then
+		cd "$hblang_dir" || die 1 "failed to enter hblang directory"
 
-    current_commit=$(git rev-parse HEAD 2>/dev/null)
-    if [ "$current_commit" != "$HBLANG_COMMIT" ]; then
-      if ! git cat-file -e "$HBLANG_COMMIT^{commit}" 2>/dev/null; then
-        log "fetching hblang repository updates"
-        git fetch --all >/dev/null 2>&1 || die 1 "failed to fetch repository"
-      fi
-      git checkout -f "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to checkout commit"
-    fi
-  else
-    log "cloning hblang repository"
-    git clone "$HBLANG_GIT" "$hblang_dir" >/dev/null 2>&1 || die 1 "failed to clone repository"
-    cd "$hblang_dir" || die 1 "failed to enter cloned directory"
+		current_commit=$(git rev-parse HEAD 2>/dev/null)
+		if [ "$current_commit" != "$HBLANG_COMMIT" ]; then
+			if ! git cat-file -e "$HBLANG_COMMIT^{commit}" 2>/dev/null; then
+				log "fetching hblang repository updates"
+				git fetch --all >/dev/null 2>&1 || die 1 "failed to fetch repository"
+			fi
+			git checkout -f "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to checkout commit"
+		fi
+	else
+		log "cloning hblang repository"
+		git clone "$HBLANG_GIT" "$hblang_dir" >/dev/null 2>&1 || die 1 "failed to clone repository"
+		cd "$hblang_dir" || die 1 "failed to enter cloned directory"
 
-    if ! git cat-file -e "$HBLANG_COMMIT^{commit}" 2>/dev/null; then
-      git fetch origin "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to fetch commit"
-    fi
-    git checkout -f "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to checkout commit"
-  fi
+		if ! git cat-file -e "$HBLANG_COMMIT^{commit}" 2>/dev/null; then
+			git fetch origin "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to fetch commit"
+		fi
+		git checkout -f "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to checkout commit"
+	fi
 
-  # do not build with optimisations if you want to report bugs.
-  zig build install >/dev/null || die $? "failed to build hblang. exit code=$?"
+	# do not build with optimisations if you want to report bugs.
+	zig build install >/dev/null || die $? "failed to build hblang. exit code=$?"
 
-  PATH="$hblang_dir/zig-out/bin:$PATH"
-  cd "$LILY_SCRIPT_DIR" || die 1 "failed to return to script directory"
+	PATH="$hblang_dir/zig-out/bin:$PATH"
+	cd "$LILY_SCRIPT_DIR" || die 1 "failed to return to script directory"
 }
 
 main() {
-  mkdir -p "$LILY_BUILD_DIR" || die 1 "failed to create build directory"
-  fetch_step
+	mkdir -p "$LILY_BUILD_DIR" || die 1 "failed to create build directory"
+	fetch_step
 
-  do_test() {
-    # shellcheck disable=SC2086
-    $HBC_BINARY $HBC_FLAGS --vendored-test "$file" >"$LILY_BUILD_DIR/$test_name.test" 2>&1
-    exit="$?"
-    if [ ! $exit = 0 ]; then
-      error "\e[1;31m⨯\033[0m $test_name \e[1;30m(exit=\e[1;31m$exit\e[1;30m) ($(basename "$LILY_BUILD_DIR")/$test_name.test)"
-      echo "0" >>"$result_file"
-    else
-      # shellcheck disable=SC2086
-      len=$($HBC_BINARY $HBC_FLAGS "$file" | wc -c | numfmt --to=iec-i)
-      log "✓ $test_name \e[1;30m(size=\e[1;32m$len\e[1;30m)"
-      # log "\e[0;32m✓\033[0m $test_name"
-      echo "1" >>"$result_file"
-      # surely good idea.
-      rm "$LILY_BUILD_DIR/$test_name.test"
-      # shellcheck disable=SC2086
-      $HBC_BINARY $HBC_FLAGS "$file" --fmt >/dev/null 2>&1
-    fi
-  }
+	do_test() {
+		# shellcheck disable=SC2086
+		$HBC_BINARY $HBC_FLAGS --vendored-test "$file" >"$LILY_BUILD_DIR/$test_name.test" 2>&1
+		exit="$?"
+		if [ ! $exit = 0 ]; then
+			error "\e[1;31m⨯\033[0m $test_name \e[1;30m(exit=\e[1;31m$exit\e[1;30m) ($(basename "$LILY_BUILD_DIR")/$test_name.test)"
+			echo "0" >>"$result_file"
+		else
+			# shellcheck disable=SC2086
+			len=$($HBC_BINARY $HBC_FLAGS "$file" | wc -c | numfmt --to=iec-i)
+			log "✓ $test_name \e[1;30m(size=\e[1;32m$len\e[1;30m)"
+			# log "\e[0;32m✓\033[0m $test_name"
+			echo "1" >>"$result_file"
+			# surely good idea.
+			rm "$LILY_BUILD_DIR/$test_name.test"
+			# shellcheck disable=SC2086
+			$HBC_BINARY $HBC_FLAGS "$file" --fmt >/dev/null 2>&1
+		fi
+	}
 
-  if [ "$HBC_TESTS" = 1 ]; then
-    tmpfile=$(mktemp)
-    result_file=$(mktemp)
-    find "$LILY_TEST_DIR" -type f >"$tmpfile"
-    while IFS= read -r file; do
-      test_name=$(realpath -s --relative-to="$LILY_TEST_DIR" "$file" | tr '/' '.')
-      test_name="${test_name%.*}"
-      do_test 2>/dev/null &
-    done <"$tmpfile"
-    rm -f "$tmpfile"
-    wait
+	if [ "$HBC_TESTS" = 1 ]; then
+		tmpfile=$(mktemp)
+		result_file=$(mktemp)
+		find "$LILY_TEST_DIR" -type f >"$tmpfile"
+		while IFS= read -r file; do
+			test_name=$(realpath -s --relative-to="$LILY_TEST_DIR" "$file" | tr '/' '.')
+			test_name="${test_name%.*}"
+			do_test 2>/dev/null &
+		done <"$tmpfile"
+		rm -f "$tmpfile"
+		wait
 
-    failures=$(grep -c "0" "$result_file")
-    successes=$(grep -c "1" "$result_file")
+		failures=$(grep -c "0" "$result_file")
+		successes=$(grep -c "1" "$result_file")
 
-    rm -f "$result_file"
+		rm -f "$result_file"
 
-    if [ "$failures" = 0 ]; then
-      log "$successes/$((successes + failures)) tests passed"
-    else
-      warn "\e[0;31m$successes\033[0m/$((successes + failures)) tests passed"
-    fi
-    exit
-  fi
+		if [ "$failures" = 0 ]; then
+			log "$successes/$((successes + failures)) tests passed"
+		else
+			warn "\e[0;31m$successes\033[0m/$((successes + failures)) tests passed"
+		fi
+		exit
+	fi
 
-  inp="${1:-main.hb}"
-  [ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
+	inp="${1:-main.hb}"
+	[ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
 
-  # shellcheck disable=SC2086
-  if $HBC_BINARY $HBC_FLAGS "$inp" >"$LILY_BUILD_DIR/out.axe"; then
-    $HBC_BINARY $HBC_FLAGS "$inp" --fmt >/dev/null 2>&1
-  else
-    exit $?
-  fi
+	# shellcheck disable=SC2086
+	if $HBC_BINARY $HBC_FLAGS "$inp" >"$LILY_BUILD_DIR/out.axe"; then
+		$HBC_BINARY $HBC_FLAGS "$inp" --fmt >/dev/null 2>&1
+	else
+		exit $?
+	fi
 }
 
 main "$@"
