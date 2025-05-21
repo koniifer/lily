@@ -14,6 +14,7 @@ $log := fn(level: LogLevel, str: []u8): void {
 	}
 	$match target.current() {
 		.AbleOS => return @ecall(3, 1, target.LogEcall.(level, str.ptr, str.len), @size_of(target.LogEcall)),
+		_ => @error("target does not support logging"),
 	}
 }
 
@@ -26,14 +27,9 @@ $trace := fn(message: []u8): void return log(.Trace, message)
 fmt_buffer: [config.FMT_BUFFER_SIZE]u8 = idk
 
 print := fn(any: @Any()): void {
-	$if @TypeOf(any) == []u8 {
-		$match target.current() {
-			.AbleOS => info(any),
-		}
-	} else {
-		len := fmt.format(fmt_buffer[..], any)
-		$match target.current() {
-			.AbleOS => info(any),
-		}
+	len := fmt.format(fmt_buffer[..], any)
+	$match target.current() {
+		.AbleOS => info(fmt_buffer[..len]),
+		_ => @error("target does not support logging"),
 	}
 }

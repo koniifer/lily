@@ -7,4 +7,5 @@ main := fn(): void {
 	iter := mem.iter(mem.reverse("Hello, World!")[1..]).take(5)
 	str := iter.collect_vec(&arena)
 	log.info(str.slice)
+	log.print(arena)
 }

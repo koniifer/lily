@@ -7,10 +7,12 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	}
 
 	prefix_len := 0
-	if Type(@TypeOf(v)).is_signed_int() & v < 0 {
-		v = -v
-		buf[0] = '-'
-		prefix_len += 1
+	$if Type(@TypeOf(v)).is_signed_int() {
+		if v < 0 {
+			v = -v
+			buf[0] = '-'
+			prefix_len += 1
+		}
 	}
 	if radix == 16 {
 		mem.copy(buf[prefix_len..], "0x")
@@ -54,7 +56,11 @@ fmt_bool := fn(buf: []u8, v: bool): uint {
 }
 
 fmt_optional := fn(buf: []u8, v: @Any()): uint {
-	if v != null return format(buf, @as(@ChildOf(@TypeOf(v)), v.?))
+	if v != null {
+		// have to bitcast here for some reason...
+		v_real: @ChildOf(@TypeOf(v)) = @bit_cast(v.?)
+		return format(buf, v_real)
+	}
 	mem.copy(buf, "null")
 	return 4
 }
@@ -67,23 +73,68 @@ fmt_enum := fn(buf: []u8, v: @Any()): uint {
 	mem.copy(buf[len..], ".(")
 	len += 2
 	len += fmt_int(buf[len..], @as(Type(T).USize(), @bit_cast(v)), 10)
-	mem.copy(buf[len..], ")")
+	buf[len] = ')'
+	return len + 1
+}
+
+fmt_container := fn(buf: []u8, v: @Any()): uint {
+	T := Type(@TypeOf(v))
+	i := 0
+	len := 0
+	$if T.kind() == .Struct {
+		mem.copy(buf, T.name())
+		len += T.name().len
+		mem.copy(buf[len..], ".(")
+	} else $if T.raw_kind() == .SliceOrArray {
+		mem.copy(buf, T.Child().name())
+		len += T.Child().name().len
+		mem.copy(buf[len..], ".[")
+	} else $if T.kind() == .Tuple {
+		// perhaps T.Child().name()
+		mem.copy(buf[len..], ".(")
+	}
+	len += 2
+
+	$if T.kind() == .Slice {
+		loop if i == v.len break else {
+			len += format(buf[len..], v[i])
+			i += 1
+			if i < v.len {
+				mem.copy(buf[len..], ", ")
+				len += 2
+			}
+		}
+	} else {
+		$loop $if i == T.len() break else {
+			len += format(buf[len..], v[i])
+			i += 1
+			$if i < T.len() {
+				mem.copy(buf[len..], ", ")
+				len += 2
+			}
+		}
+	}
+
+	$if T.kind() == .Struct | T.kind() == .Tuple {
+		buf[len] = ')'
+	} else {
+		buf[len] = ']'
+	}
 	return len + 1
 }
 
 format := fn(buf: []u8, v: @Any()): uint {
 	T := Type(@TypeOf(v))
-	$match T.kind() {
+	$match T.raw_kind() {
 		.Pointer => return fmt_int(buf, @as(uint, @bit_cast(v)), 16),
 		.Builtin => {
 			$if T.is_int() return fmt_int(buf, v, 10)
 			$if T.is_bool() return fmt_bool(buf, v)
 			$if T.is_float() @error("todo: fmt_float")
 		},
-		.Struct => @error("todo: fmt_container"),
-		.Tuple => @error("todo: fmt_container"),
-		.Slice => @error("todo: fmt_container"),
-		.Array => @error("todo: fmt_container"),
+		.Struct => return fmt_container(buf, v),
+		.Tuple => @error("cant format a tuple yet"),
+		.SliceOrArray => return fmt_container(buf, v),
 		.Optional => return fmt_optional(buf, v),
 		.Enum => return fmt_enum(buf, v),
 		_ => @error("formatting ", @TypeOf(v), " is not supported"),
