@@ -6,12 +6,12 @@ AllocationHeader := struct {
 	.next: ?^@CurrentScope()
 
 	$new := fn(size: uint): ?^@CurrentScope() {
-		total_size := size + @size_of(Self)
+		total_size := size + @size_of(@CurrentScope())
 		ptr: ?^@CurrentScope() = @bit_cast(target.alloc(total_size))
 		if ptr == null return null
 		header: ^@CurrentScope() = @bit_cast(ptr)
 		header.* = .(
-			target.pages(total_size) * target.page_len() - @size_of(Self),
+			target.pages(total_size) * target.page_len() - @size_of(@CurrentScope()),
 			0,
 			null,
 		)
