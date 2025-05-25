@@ -36,7 +36,7 @@ Vec := fn(T: type, A: type): type return struct {
 		return self.slice.len
 	}
 
-	deinit := fn(self: ^Self): void {
+	$deinit := fn(self: ^Self): void {
 		self.allocator.dealloc(T, self.slice[0..self.cap])
 		self.* = idk
 	}

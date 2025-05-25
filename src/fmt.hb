@@ -1,4 +1,4 @@
-.{target, Type, TypeOf, mem} := @use("lib.hb")
+lily.{Type, mem} := @use("lib.hb")
 
 fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	if radix == 0 {
@@ -109,6 +109,8 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 			len += format(buf[len..], v[i])
 			i += 1
 			$if i < T.len() {
+				// ! causing buffer overflow here (everywhere else too)
+				// ! because buf[len..] reduces the length
 				mem.copy(buf[len..], ", ")
 				len += 2
 			}

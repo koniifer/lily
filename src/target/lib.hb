@@ -32,12 +32,12 @@ current := fn(): Target {
 	$if @target("ableos") {
 		return .AbleOS
 	}
-	return .Unknown
+	@error("unknown target")
 }
 
 lib := fn(): type {
 	$match current() {
 		.AbleOS => return @use("ableos.hb"),
-		.Unknown => return @use("unknown.hb"),
+		.Unknown => @error("unknown target"),
 	}
 }

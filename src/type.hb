@@ -27,8 +27,6 @@ Kind := enum {
 	.Global;
 }
 
-TypeOf := fn(v: @Any()): type return Type(@TypeOf(v))
-
 Type := fn($T: type): type return struct {
 	Self := @CurrentScope()
 

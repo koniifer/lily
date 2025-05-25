@@ -28,6 +28,9 @@ $new := fn(): Self {
 }
 alloc := fn(self: ^Self, $T: type, count: uint): ?[]T {
 	size := mem.size(T, count)
+
+	if size == 0 return null
+
 	header: ^AllocationHeader = @bit_cast(self.allocation)
 
 	if self.allocation == null {

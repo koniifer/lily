@@ -59,8 +59,10 @@ $copy := fn(dest: []u8, src: []u8): void {
 
 $move := fn(dest: []u8, src: []u8): void {
 	$if config.DEBUG {
-		log.error("mem.move: src bigger than dest")
-		if src.len > dest.len die
+		if src.len > dest.len {
+			log.error("mem.move: src bigger than dest")
+			die
+		}
 	}
 	target.memmove(dest.ptr, src.ptr, src.len)
 }
@@ -72,7 +74,7 @@ $set := fn(dest: []u8, src: u8): void {
 $fill := fn(dest: []u8, src: []u8): void {
 	$if config.DEBUG {
 		if src.len > dest.len | overlaps(dest, src) {
-			log.error("mem.copy: regions overlap or src bigger than dest or align bad")
+			log.error("mem.copy: regions overlap or src bigger than dest")
 			die
 		}
 	}

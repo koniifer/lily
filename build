@@ -8,7 +8,7 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.eu/mlokis/hblang.git"
-readonly HBLANG_COMMIT="274a0be64715756e552893f55044de568e7af09c"
+readonly HBLANG_COMMIT="9b98f3e92896b670ed298ce13cc674d4c78b0dd5"
 readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
 readonly HBC_BINARY="hbc"
 readonly HBC_TESTS="${HBC_TESTS:-0}"
@@ -40,6 +40,9 @@ fetch_step() {
 		log "cloning hblang repository"
 		git clone "$HBLANG_GIT" "$hblang_dir" >/dev/null 2>&1 || die 1 "failed to clone repository"
 		cd "$hblang_dir" || die 1 "failed to enter cloned directory"
+
+		log "pulling git submodules"
+		git submodule update --init --recursive >/dev/null 2>&1
 
 		if ! git cat-file -e "$HBLANG_COMMIT^{commit}" 2>/dev/null; then
 			git fetch origin "$HBLANG_COMMIT" >/dev/null 2>&1 || die 1 "failed to fetch commit"

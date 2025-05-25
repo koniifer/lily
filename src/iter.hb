@@ -74,7 +74,6 @@ Iterator := fn(T: type): type return struct {
 			cont[i] = x.val
 		}
 	}
-	// ! broken
 	collect_vec := fn(self: ^Self, allocator: @Any()): Vec(IterVal, @ChildOf(@TypeOf(allocator))) {
 		vec := Vec(IterVal, @ChildOf(@TypeOf(allocator))).new(allocator)
 		loop {
