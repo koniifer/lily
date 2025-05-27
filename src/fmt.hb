@@ -128,11 +128,37 @@ fmt_enum := fn(buf: []u8, v: @Any()): uint {
 	T := @TypeOf(v)
 	len := @name_of(T).len
 	mem.copy(buf, @name_of(T))
-	mem.copy(buf[len..], ".(")
-	len += 2
-	len += fmt_int(buf[len..], @as(TypeInfo(T).UIntSize, @bit_cast(v)), 10)
-	buf[len] = ')'
-	return len + 1
+	buf[len] = '.'
+	len += 1
+
+	sum := 0
+	i: u8 = 0
+	$loop $if i == @len_of(@TypeOf(v)) break else {
+		sum += @int_cast(@name_of(@as(@TypeOf(v), @bit_cast(i))).len)
+		i += 1
+	}
+
+	namebuf: [sum]u8 = idk
+	index: [@len_of(@TypeOf(v)) + 1]uint = idk
+
+	index[0] = 0
+	ii: u8 = 0
+	bi := 0
+	$loop $if ii == @len_of(@TypeOf(v)) break else {
+		name := @name_of(@as(@TypeOf(v), @bit_cast(ii)))
+		ij := 0
+		$loop $if ij == name.len break else {
+			namebuf[bi + ij] = name[ij]
+			ij += 1
+		}
+
+		bi += @int_cast(name.len)
+		ii += 1
+		index[ii] = bi
+	}
+
+	mem.copy(buf[len..], namebuf[index[v]..index[@as(u8, v) + 1]])
+	return len + namebuf[index[v]..index[@as(u8, v) + 1]].len
 }
 
 fmt_container := fn(buf: []u8, v: @Any()): uint {
@@ -144,7 +170,7 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 		mem.copy(buf, @name_of(T.Type))
 		len += T.name.len
 		mem.copy(buf[len..], ".(")
-	} else $if T.raw_kind == .SliceOrArray {
+	} else $if T.internal_kind == .SliceOrArray {
 		// ! temporary workaround for segfault
 		mem.copy(buf, @name_of(T.Child.Type))
 		len += T.Child.name.len
@@ -187,12 +213,14 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 
 format := fn(buf: []u8, v: @Any()): uint {
 	T := TypeInfo(@TypeOf(v))
-	$match T.raw_kind {
+	$match T.internal_kind {
 		.Pointer => return fmt_int(buf, @as(uint, @bit_cast(v)), 16),
 		.Builtin => {
 			$if T.is_int return fmt_int(buf, v, 10)
 			$if T.is_bool return fmt_bool(buf, v)
 			$if T.is_float return fmt_float(buf, v, 1 << 32, 10)
+
+			@error("why are you trying to print a ", @TypeOf(v))
 		},
 		.Struct => return fmt_container(buf, v),
 		.Tuple => @error("cant format a tuple yet"),

@@ -33,6 +33,9 @@ Iterator := fn(T: type): type return struct {
 	$chain := fn(self: ^Self, rhs: @Any()): Iterator(Chain(T, @TypeOf(rhs))) {
 		return .(.(self, rhs, .Iter0))
 	}
+	$interleave := fn(self: ^Self, rhs: @Any()): Iterator(Interleave(T, @TypeOf(rhs))) {
+		return .(.(self, rhs, .Iter0))
+	}
 	$for_each := fn(self: ^Self, $func: type): void {
 		loop {
 			x := self.next()
@@ -142,8 +145,7 @@ Chain := fn($A: type, $B: type): type {
 	$if Iter0Next != Iter1Next @error(Iter0Next, " != ", Iter1Next)
 
 	return struct {
-		.iter0: ^Iterator(A)
-		/* todo: ^B? */;
+		.iter0: ^Iterator(A);
 		.iter1: B;
 		.state: enum{.Iter0; .Iter0Finished; .BothFinished}
 
@@ -165,6 +167,47 @@ Chain := fn($A: type, $B: type): type {
 				},
 			}
 			return .(self.state == .BothFinished, x.val)
+		}
+	}
+}
+
+Interleave := fn($A: type, $B: type): type {
+	Iter0Next := @TypeOf(A.next(idk).val)
+	Iter1Next := @TypeOf(B.next(idk).val)
+
+	$if Iter0Next != Iter1Next @error(Iter0Next, " != ", Iter1Next)
+
+	return struct {
+		.iter0: ^Iterator(A);
+		.iter1: B;
+		.state: enum {
+			.Iter0;
+			.Iter1;
+			.Iter0Finished;
+			.Iter1Finished;
+		}
+		next := fn(self: ^@CurrentScope()): Next(Iter0Next) {
+			x: Next(Iter0Next) = idk
+			match self.state {
+				.Iter0 => {
+					x = self.iter0.inner.next()
+					if x.finished self.state = .Iter0Finished else self.state = .Iter1
+				},
+				.Iter1 => {
+					x = self.iter1.inner.next()
+					if x.finished {
+						self.state = .Iter1Finished
+						return self.next()
+					} else self.state = .Iter0
+				},
+				.Iter1Finished => {
+					x = self.iter0.inner.next()
+					if x.finished self.state = .Iter0Finished
+				},
+				_ => {
+				},
+			}
+			return .(self.state == .Iter0Finished, x.val)
 		}
 	}
 }

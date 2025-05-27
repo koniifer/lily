@@ -1,4 +1,4 @@
-RawKind := enum {
+InternalKind := enum {
 	.Builtin;
 	.Pointer;
 	.SliceOrArray;
@@ -50,7 +50,7 @@ TypeInfo := fn($T: type): type return struct {
 	$offset := @align_of(T)
 	$size := @size_of(T)
 	$bits := Self.size << 3
-	$raw_kind: RawKind = @bit_cast(@kind_of(T))
+	$internal_kind: InternalKind = @bit_cast(@kind_of(T))
 	$kind := kind_of(T)
 }
 
@@ -105,9 +105,9 @@ IntSizeOf := fn($T: type): type {
 }
 
 $kind_of := fn($T: type): Kind {
-	$match @as(RawKind, @bit_cast(@kind_of(T))) {
+	$match @as(InternalKind, @bit_cast(@kind_of(T))) {
 		.SliceOrArray => $if []@ChildOf(T) == T return .Slice else return .Array,
-		_ => $if @kind_of(T) > @bit_cast(RawKind.SliceOrArray) {
+		_ => $if @kind_of(T) > @bit_cast(InternalKind.SliceOrArray) {
 			return @bit_cast(@kind_of(T) + 1)
 		} else return @bit_cast(@kind_of(T)),
 	}
