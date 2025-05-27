@@ -27,3 +27,13 @@ Version := struct {
 }
 
 $VERSION := Version.(0, 1, 0)
+
+$panic := fn(context: @Any()): never {
+	$if @TypeOf(context) == []u8 {
+		log.error(context)
+	} else $if @TypeOf(context) == void | @TypeOf(context) == @TypeOf(.()) {
+	} else {
+		@error("don't know what to do with this: ", @TypeOf(context))
+	}
+	die
+}

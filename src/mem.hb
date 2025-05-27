@@ -106,6 +106,46 @@ reverse := fn(slice: []u8): []u8 {
 	} else return slice
 }
 
+count := fn(haystack: []u8, needle: @Any(), allow_overlaps: bool): uint {
+	T := @TypeOf(needle)
+	if haystack.len == 0 return 0
+	i := 0
+	c := 0
+	$if T == []u8 {
+		if needle.len == 0 return 0
+		loop {
+			if i + needle.len > haystack.len return c
+			if haystack[i] == needle[0] {
+				matches := true
+				n := 1
+				loop if n == needle.len break else {
+					if haystack[i + n] != needle[n] {
+						matches = false
+						break
+					}
+					n += 1
+				}
+				if matches {
+					c += 1
+					if !allow_overlaps {
+						i += needle.len
+						continue
+					}
+				}
+			}
+			i += 1
+		}
+	} else $if T == u8 {
+		loop {
+			if i >= haystack.len return c
+			if haystack[i] == needle c += 1
+			i += 1
+		}
+	} else {
+		@error("Type ", @TypeOf(needle), " is not []u8 or u8.")
+	}
+}
+
 $iter := fn(slice: []u8): Iterator(struct {
 	.slice: []u8
 

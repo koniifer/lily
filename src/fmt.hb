@@ -230,3 +230,9 @@ format := fn(buf: []u8, v: @Any()): uint {
 		_ => @error("formatting ", @TypeOf(v), " is not supported"),
 	}
 }
+
+// format_with_str := fn(str: []u8, buf: []u8, v: @Any()): uint {
+// 	T := TypeInfo(@TypeOf(v))
+// 	n := mem.count(str, '{')
+// 	if n != mem.count(str, '}') lily.panic("unmatched format specifier in string")
+// }
