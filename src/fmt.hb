@@ -1,11 +1,6 @@
 lily.{TypeInfo, mem} := @use("lib.hb")
 
 fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
-	if radix == 0 {
-		mem.copy(buf, mem.as_bytes(&v))
-		return @size_of(@TypeOf(v))
-	}
-
 	prefix_len := 0
 	$if TypeInfo(@TypeOf(v)).is_signed_int {
 		if v < 0 {
@@ -43,6 +38,68 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 		i += 1
 	}
 	_ = mem.reverse(buf[prefix_len..i])
+	return i
+}
+
+fmt_float := fn(buf: []u8, v: @Any(), precision: uint, radix: int): uint {
+	prefix_len := 0
+	if v < 0.0 {
+		v = -v
+		buf[0] = '-'
+		prefix_len += 1
+	}
+
+	if radix == 16 {
+		mem.copy(buf[prefix_len..], "0x")
+		prefix_len += 2
+	} else if radix == 8 {
+		mem.copy(buf[prefix_len..], "0o")
+		prefix_len += 2
+	} else if radix == 2 {
+		mem.copy(buf[prefix_len..], "0b")
+		prefix_len += 2
+	}
+
+	// todo: optimise unnecessary check
+	if v == 0.0 {
+		buf[prefix_len] = '0'
+		return prefix_len + 1
+	}
+
+	integer_part := @float_to_int(v)
+	fractional_part := v - @int_to_float(integer_part)
+
+	i := prefix_len
+	loop if integer_part <= 0 & i > prefix_len break else {
+		remainder: u8 = @int_cast(integer_part % radix)
+		integer_part /= radix
+		if remainder > 9 {
+			buf[i] = remainder - 10 + 'A'
+		} else {
+			buf[i] = remainder + '0'
+		}
+		i += 1
+	}
+
+	_ = mem.reverse(buf[prefix_len..i])
+	if fractional_part > 0.00000001 {
+		buf[i] = '.'
+		i += 1
+
+		p := precision
+		loop if p <= 0 | fractional_part < 0.00000001 break else {
+			fractional_part *= @int_to_float(radix)
+			digit := @float_to_int(fractional_part)
+			if digit > 9 {
+				buf[i] = @int_cast(digit - 10 + 'A')
+			} else {
+				buf[i] = @int_cast(digit + '0')
+			}
+			i += 1
+			p -= 1
+			fractional_part -= @int_to_float(digit)
+		}
+	}
 	return i
 }
 
@@ -135,7 +192,7 @@ format := fn(buf: []u8, v: @Any()): uint {
 		.Builtin => {
 			$if T.is_int return fmt_int(buf, v, 10)
 			$if T.is_bool return fmt_bool(buf, v)
-			$if T.is_float @error("todo: fmt_float")
+			$if T.is_float return fmt_float(buf, v, 1 << 32, 10)
 		},
 		.Struct => return fmt_container(buf, v),
 		.Tuple => @error("cant format a tuple yet"),
