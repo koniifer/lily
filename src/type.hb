@@ -61,7 +61,7 @@ max_of := fn($T: type): T {
 	$if TypeInfo(T).is_signed_int return @bit_cast(TypeInfo(T).bitmask >> 1)
 
 	$if T == f32 return @bit_cast(@as(u32, 0x7F7FFFFF))
-	$if T == f64 return @int_to_float(@as(int, @bit_cast(0x7FEFFFFFFFFFFFFF)))
+	$if T == f64 return @bit_cast(@as(u64, 0x7FEFFFFFFFFFFFFF))
 
 	@error(T, " does not have a meaningful maximum value")
 }
@@ -73,7 +73,7 @@ min_of := fn($T: type): T {
 	$if TypeInfo(T).is_signed_int return ~@bit_cast(TypeInfo(T).bitmask >> 1)
 
 	$if T == f32 return @bit_cast(@as(u32, 0xFF7FFFFF))
-	$if T == f64 return @int_to_float(@as(int, @bit_cast(0xFFEFFFFFFFFFFFFF)))
+	$if T == f64 return @bit_cast(@as(u64, 0xFFEFFFFFFFFFFFFF))
 
 	@error(T, " does not have a meaningful minimum value")
 }

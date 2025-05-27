@@ -2,9 +2,11 @@ expectations := .{
 	return_value: 0,
 }
 
-float32 := fn(): f32 return -1.0
+// -1
+float32 := fn(): f32 return @bit_cast(@as(u32, 0xBF800000))
 
-float64 := fn(): f64 return -1.0
+// -1
+float64 := fn(): f64 return @bit_cast(@as(u64, 0xBFF0000000000000))
 
 opaque := fn(v: @Any()): @TypeOf(v) return v
 
