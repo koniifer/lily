@@ -1,4 +1,4 @@
-.{Type, TypeOf} := @use("type.hb")
+.{TypeInfo, RawKind, Kind} := @use("type.hb")
 process := @use("process.hb")
 target := @use("target/lib.hb")
 alloc := @use("alloc/lib.hb")

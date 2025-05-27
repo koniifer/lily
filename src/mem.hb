@@ -1,4 +1,4 @@
-.{target, iter: .{Iterator, Next}, config, log, Type} := @use("lib.hb")
+.{target, iter: .{Iterator, Next}, config, log, TypeInfo} := @use("lib.hb")
 
 $size := fn($T: type, count: uint): uint {
 	return @size_of(T) * count
@@ -19,13 +19,13 @@ $is_aligned := fn(ptr: ^u8, _align: uint): bool {
 }
 
 $dangling := fn($T: type): ^T {
-	$if Type(T).kind() == .Optional @error(T, " is an optional pointer. use `null` instead.")
+	$if TypeInfo(T).kind == .Optional @error(T, " is an optional pointer. use `null` instead.")
 	return @bit_cast(@align_of(T))
 }
 
 $as_bytes := fn(v: @Any()): []u8 {
 	$T := @TypeOf(v)
-	$match Type(T).kind() {
+	$match TypeInfo(T).kind {
 		.Pointer => return @as(^u8, @bit_cast(v))[..@size_of(@ChildOf(T))],
 		.Slice => return @as(^u8, @bit_cast(v.ptr))[..@size_of(@ChildOf(T)) * v.len],
 		_ => @error(@TypeOf(v), " is not a pointer or a slice."),
@@ -33,7 +33,7 @@ $as_bytes := fn(v: @Any()): []u8 {
 }
 
 $to_owned := fn($T: type, slice: []u8): T {
-	$match Type(T).kind() {
+	$match TypeInfo(T).kind {
 		.Array => {
 			ret: T = idk
 			copy(ret[..], slice)

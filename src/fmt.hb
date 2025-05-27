@@ -1,4 +1,4 @@
-lily.{Type, mem} := @use("lib.hb")
+lily.{TypeInfo, mem} := @use("lib.hb")
 
 fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	if radix == 0 {
@@ -7,8 +7,9 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 	}
 
 	prefix_len := 0
-	$if Type(@TypeOf(v)).is_signed_int() {
+	$if TypeInfo(@TypeOf(v)).is_signed_int {
 		if v < 0 {
+			// todo: handle edge case for int maximum negative value
 			v = -v
 			buf[0] = '-'
 			prefix_len += 1
@@ -32,12 +33,12 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 
 	i := prefix_len
 	loop if v <= 0 break else {
-		remainder := v % radix
+		remainder: u8 = @int_cast(v % radix)
 		v /= radix
 		if remainder > 9 {
-			buf[i] = @int_cast(remainder - 10 + 'A')
+			buf[i] = remainder - 10 + 'A'
 		} else {
-			buf[i] = @int_cast(remainder + '0')
+			buf[i] = remainder + '0'
 		}
 		i += 1
 	}
@@ -72,30 +73,32 @@ fmt_enum := fn(buf: []u8, v: @Any()): uint {
 	mem.copy(buf, @name_of(T))
 	mem.copy(buf[len..], ".(")
 	len += 2
-	len += fmt_int(buf[len..], @as(Type(T).USize(), @bit_cast(v)), 10)
+	len += fmt_int(buf[len..], @as(TypeInfo(T).UIntSize, @bit_cast(v)), 10)
 	buf[len] = ')'
 	return len + 1
 }
 
 fmt_container := fn(buf: []u8, v: @Any()): uint {
-	T := Type(@TypeOf(v))
+	T := TypeInfo(@TypeOf(v))
 	i := 0
 	len := 0
-	$if T.kind() == .Struct {
-		mem.copy(buf, T.name())
-		len += T.name().len
+	$if T.kind == .Struct {
+		// ! temporary workaround for segfault
+		mem.copy(buf, @name_of(T.Type))
+		len += T.name.len
 		mem.copy(buf[len..], ".(")
-	} else $if T.raw_kind() == .SliceOrArray {
-		mem.copy(buf, T.Child().name())
-		len += T.Child().name().len
+	} else $if T.raw_kind == .SliceOrArray {
+		// ! temporary workaround for segfault
+		mem.copy(buf, @name_of(T.Child.Type))
+		len += T.Child.name.len
 		mem.copy(buf[len..], ".[")
-	} else $if T.kind() == .Tuple {
-		// perhaps T.Child().name()
+	} else $if T.kind == .Tuple {
+		// perhaps T.Child.name
 		mem.copy(buf[len..], ".(")
 	}
 	len += 2
 
-	$if T.kind() == .Slice {
+	$if T.kind == .Slice {
 		loop if i == v.len break else {
 			len += format(buf[len..], v[i])
 			i += 1
@@ -105,10 +108,10 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 			}
 		}
 	} else {
-		$loop $if i == T.len() break else {
+		$loop $if i == T.len break else {
 			len += format(buf[len..], v[i])
 			i += 1
-			$if i < T.len() {
+			$if i < T.len {
 				// ! causing buffer overflow here (everywhere else too)
 				// ! because buf[len..] reduces the length
 				mem.copy(buf[len..], ", ")
@@ -117,7 +120,7 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 		}
 	}
 
-	$if T.kind() == .Struct | T.kind() == .Tuple {
+	$if T.kind == .Struct | T.kind == .Tuple {
 		buf[len] = ')'
 	} else {
 		buf[len] = ']'
@@ -126,13 +129,13 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 }
 
 format := fn(buf: []u8, v: @Any()): uint {
-	T := Type(@TypeOf(v))
-	$match T.raw_kind() {
+	T := TypeInfo(@TypeOf(v))
+	$match T.raw_kind {
 		.Pointer => return fmt_int(buf, @as(uint, @bit_cast(v)), 16),
 		.Builtin => {
-			$if T.is_int() return fmt_int(buf, v, 10)
-			$if T.is_bool() return fmt_bool(buf, v)
-			$if T.is_float() @error("todo: fmt_float")
+			$if T.is_int return fmt_int(buf, v, 10)
+			$if T.is_bool return fmt_bool(buf, v)
+			$if T.is_float @error("todo: fmt_float")
 		},
 		.Struct => return fmt_container(buf, v),
 		.Tuple => @error("cant format a tuple yet"),

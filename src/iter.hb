@@ -1,4 +1,4 @@
-lily.{Type, alloc: .{Vec}} := @use("lib.hb")
+lily.{TypeInfo, alloc: .{Vec}} := @use("lib.hb")
 
 Next := fn(T: type): type return struct {
 	.finished: bool;
@@ -58,7 +58,7 @@ Iterator := fn(T: type): type return struct {
 		}
 	}
 	collect := fn(self: ^Self, $A: type): ?A {
-		$if Type(A).kind() != .Array {
+		$if TypeInfo(A).kind != .Array {
 			@error("collecting", Self, "into type", A, "unsupported for now")
 		}
 		$if @ChildOf(A) != IterVal {
@@ -148,7 +148,6 @@ Chain := fn($A: type, $B: type): type {
 		.state: enum{.Iter0; .Iter0Finished; .BothFinished}
 
 		next := fn(self: ^@CurrentScope()): Next(Iter0Next) {
-			// todo: replace with Type(T).uninit()
 			x: Next(Iter0Next) = idk
 			match self.state {
 				.Iter0 => {

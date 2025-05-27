@@ -1,4 +1,4 @@
-lily.{target, mem, Type} := @use("lib.hb")
+lily.{target, mem, TypeInfo} := @use("lib.hb")
 
 Buffer := struct {
 	.id: uint
@@ -37,7 +37,7 @@ Buffer := struct {
 		target.buf_await(self.id)
 	}
 	$write := fn(self: ^Self, val: @Any()): void {
-		$match Type(@TypeOf(val)).kind() {
+		$match TypeInfo(@TypeOf(val)).kind {
 			.Pointer => target.buf_write(self.id, mem.as_bytes(val)),
 			.Slice => target.buf_write(self.id, mem.as_bytes(val)),
 			_ => target.buf_write(self.id, mem.as_bytes(&val)),
