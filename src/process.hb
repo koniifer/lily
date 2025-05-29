@@ -1,7 +1,7 @@
 lily.{target} := @use("lib.hb")
 
 ProcessID := fn(): type {
-	$match target.current() {
+	$match target.current {
 		.AbleOS => return struct {
 			.host_id: uint;
 			.id: uint;

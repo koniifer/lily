@@ -9,15 +9,23 @@ log := @use("log.hb")
 fmt := @use("fmt.hb")
 
 config := struct {
-	$DEBUG := true
-	$MIN_LOGLEVEL := log.LogLevel.Info
-	// sufficent for now.
-	$FMT_BUFFER_SIZE := 256
+	$optimise := Optimise.Debug
+	// sufficent for now. will be replaced with dynamic size later.
+	$fmt_buffer_size := 256
 
-	$min_loglevel := fn(): log.LogLevel {
-		$if config.DEBUG & config.MIN_LOGLEVEL < .Debug return .Debug
-		return config.MIN_LOGLEVEL
+	$_min_loglevel := fn($level: type): log.LogLevel {
+		$if config.optimise < .ReleaseSafe & level.inner < .Debug return .Debug
+		return level.inner
 	}
+	$min_loglevel := _min_loglevel(struct {
+		inner := log.LogLevel.Info
+	})
+}
+
+Optimise := enum {
+	.Debug;
+	.ReleaseSafe;
+	.ReleaseFast;
 }
 
 Version := struct {

@@ -28,15 +28,17 @@ Target := enum {
 	.Unknown;
 }
 
-current := fn(): Target {
+_current := fn(): Target {
 	$if @target("ableos") {
 		return .AbleOS
 	}
 	@error("unknown target")
 }
 
+$current := _current()
+
 lib := fn(): type {
-	$match current() {
+	$match _current() {
 		.AbleOS => return @use("ableos.hb"),
 		.Unknown => @error("unknown target"),
 	}

@@ -9,27 +9,58 @@ LogLevel := enum {
 }
 
 $log := fn(level: LogLevel, str: []u8): void {
-	if level > config.min_loglevel() {
+	if level > config.min_loglevel {
 		return
 	}
-	$match target.current() {
+	$match target.current {
 		.AbleOS => return @ecall(3, 1, target.LogEcall.(level, str.ptr, str.len), @size_of(target.LogEcall)),
 		_ => @error("target does not support logging"),
 	}
 }
 
-$error := fn(message: []u8): void return log(.Error, message)
-$warn := fn(message: []u8): void return log(.Warn, message)
-$info := fn(message: []u8): void return log(.Info, message)
-$debug := fn(message: []u8): void return log(.Debug, message)
-$trace := fn(message: []u8): void return log(.Trace, message)
+// type here used as workaround for comptime
+$log_builder := fn($level: type): type {
+	$if level.inner > config.min_loglevel {
+		return fn(message: []u8): void {
+		}
+	} else {
+		return fn(message: []u8): void $match target.current {
+			.AbleOS => return @ecall(3, 1, target.LogEcall.(level.inner, message.ptr, message.len), @size_of(target.LogEcall)),
+			_ => @error("target does not support logging"),
+		}
+	}
+}
 
-fmt_buffer: [config.FMT_BUFFER_SIZE]u8 = idk
+$error := log_builder(struct {
+	inner := LogLevel.Error
+})
+$warn := log_builder(struct {
+	inner := LogLevel.Warn
+})
+$info := log_builder(struct {
+	inner := LogLevel.Info
+})
+$debug := log_builder(struct {
+	inner := LogLevel.Debug
+})
+$trace := log_builder(struct {
+	inner := LogLevel.Trace
+})
+
+fmt_buffer: [config.fmt_buffer_size]u8 = idk
 
 print := fn(any: @Any()): void {
 	len := fmt.format(fmt_buffer[..], any)
-	$match target.current() {
+	$match target.current {
 		.AbleOS => info(fmt_buffer[..len]),
 		_ => @error("target does not support logging"),
 	}
 }
+
+// printf := fn(str: []u8, any: @Any()): void {
+// 	len := fmt.format_with_str(str, fmt_buffer[..], any)
+// 	$match target.current {
+// 		.AbleOS => info(fmt_buffer[..len]),
+// 		_ => @error("target does not support logging"),
+// 	}
+// }

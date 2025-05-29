@@ -1,4 +1,4 @@
-.{target, iter: .{Iterator, Next}, config, log, TypeInfo} := @use("lib.hb")
+lily.{target, iter: .{Iterator, Next}, config, TypeInfo} := @use("lib.hb")
 
 $size := fn($T: type, count: uint): uint {
 	return @size_of(T) * count
@@ -48,20 +48,18 @@ $overlaps := fn(lhs: []u8, rhs: []u8): bool {
 }
 
 $copy := fn(dest: []u8, src: []u8): void {
-	$if config.DEBUG {
+	$if config.optimise < .ReleaseFast {
 		if src.len > dest.len | overlaps(dest, src) {
-			log.error("mem.copy: regions overlap or src bigger than dest")
-			die
+			lily.panic("mem.copy: regions overlap or src bigger than dest")
 		}
 	}
 	target.memcopy(dest.ptr, src.ptr, src.len)
 }
 
 $move := fn(dest: []u8, src: []u8): void {
-	$if config.DEBUG {
+	$if config.optimise < .ReleaseFast {
 		if src.len > dest.len {
-			log.error("mem.move: src bigger than dest")
-			die
+			lily.panic("mem.move: src bigger than dest")
 		}
 	}
 	target.memmove(dest.ptr, src.ptr, src.len)
@@ -72,10 +70,9 @@ $set := fn(dest: []u8, src: u8): void {
 }
 
 $fill := fn(dest: []u8, src: []u8): void {
-	$if config.DEBUG {
+	$if config.optimise < .ReleaseFast {
 		if src.len > dest.len | overlaps(dest, src) {
-			log.error("mem.copy: regions overlap or src bigger than dest")
-			die
+			lily.panic("mem.copy: regions overlap or src bigger than dest")
 		}
 	}
 	target.memfill(dest.ptr, src.ptr, dest.len / src.len, src.len)
