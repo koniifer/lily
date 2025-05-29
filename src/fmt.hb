@@ -82,12 +82,12 @@ fmt_float := fn(buf: []u8, v: @Any(), precision: uint, radix: int): uint {
 	}
 
 	_ = mem.reverse(buf[prefix_len..i])
-	if fractional_part > 0.00000001 {
+	if fractional_part > 0.000001 {
 		buf[i] = '.'
 		i += 1
 
 		p := precision
-		loop if p <= 0 | fractional_part < 0.00000001 break else {
+		loop if p <= 0 | fractional_part < 0.000001 break else {
 			fractional_part *= @int_to_float(radix)
 			digit := @float_to_int(fractional_part)
 			if digit > 9 {
@@ -176,7 +176,6 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 		len += T.Child.name.len
 		mem.copy(buf[len..], ".[")
 	} else $if T.kind == .Tuple {
-		// perhaps T.Child.name
 		mem.copy(buf[len..], ".(")
 	}
 	len += 2
@@ -218,12 +217,12 @@ format := fn(buf: []u8, v: @Any()): uint {
 		.Builtin => {
 			$if T.is_int return fmt_int(buf, v, 10)
 			$if T.is_bool return fmt_bool(buf, v)
-			$if T.is_float return fmt_float(buf, v, 1 << 32, 10)
+			$if T.is_float return fmt_float(buf, v, 10, 10)
 
 			@error("why are you trying to print a ", @TypeOf(v))
 		},
 		.Struct => return fmt_container(buf, v),
-		.Tuple => @error("cant format a tuple yet"),
+		.Tuple => return fmt_container(buf, v),
 		.SliceOrArray => return fmt_container(buf, v),
 		.Optional => return fmt_optional(buf, v),
 		.Enum => return fmt_enum(buf, v),
@@ -231,8 +230,38 @@ format := fn(buf: []u8, v: @Any()): uint {
 	}
 }
 
-// format_with_str := fn(str: []u8, buf: []u8, v: @Any()): uint {
-// 	T := TypeInfo(@TypeOf(v))
-// 	n := mem.count(str, '{')
-// 	if n != mem.count(str, '}') lily.panic("unmatched format specifier in string")
-// }
+format_with_str := fn(str: []u8, buf: []u8, v: @Any()): uint {
+	T := TypeInfo(@TypeOf(v))
+	$if T.kind != .Tuple @error(@TypeOf(v), " is not a tuple.")
+
+	m := 0
+	i := 0
+	j := 0
+	$loop $if m == T.len break else {
+		v2 := v[m]
+		loop if i == str.len break else {
+			if str[i] == '{' {
+				if str[i + 1] == '}' {
+					j += format(buf[j..], v2)
+					i += 2
+				} else if str[i + 1] == 's' & str[i + 2] == '}' {
+					$if @TypeOf(v2) == []u8 {
+						mem.copy(buf[j..], v2)
+						j += v2.len
+						i += 3
+					} else {
+						lily.panic("cannot print value as a string")
+					}
+				}
+				break
+			} else {
+				buf[j] = str[i]
+				i += 1
+				j += 1
+			}
+		}
+		m += 1
+	}
+	mem.copy(buf[j..], str[i..])
+	return j + str[i..].len
+}

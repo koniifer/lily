@@ -49,18 +49,10 @@ $trace := log_builder(struct {
 
 fmt_buffer: [config.fmt_buffer_size]u8 = idk
 
-print := fn(any: @Any()): void {
-	len := fmt.format(fmt_buffer[..], any)
-	$match target.current {
-		.AbleOS => info(fmt_buffer[..len]),
-		_ => @error("target does not support logging"),
-	}
+$print := fn(any: @Any()): void {
+	info(fmt_buffer[..fmt.format(fmt_buffer[..], any)])
 }
 
-// printf := fn(str: []u8, any: @Any()): void {
-// 	len := fmt.format_with_str(str, fmt_buffer[..], any)
-// 	$match target.current {
-// 		.AbleOS => info(fmt_buffer[..len]),
-// 		_ => @error("target does not support logging"),
-// 	}
-// }
+$printf := fn(str: []u8, any: @Any()): void {
+	info(fmt_buffer[..fmt.format_with_str(str, fmt_buffer[..], any)])
+}

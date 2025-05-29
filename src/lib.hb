@@ -34,7 +34,7 @@ Version := struct {
 	.patch: uint;
 }
 
-$VERSION := Version.(0, 1, 0)
+$version := Version.(0, 1, 0)
 
 $panic := fn(context: @Any()): never {
 	$if @TypeOf(context) == []u8 {
