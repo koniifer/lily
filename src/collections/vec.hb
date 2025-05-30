@@ -18,6 +18,14 @@ Vec := fn(T: type, A: type): type return struct {
 		}
 		return .(new_alloc.?[..0], cap, allocator)
 	}
+	$fill_end_with := fn(self: ^Self, elem: ^T): void {
+		self.slice.len = self.cap
+		mem.fill(mem.as_bytes(self.slice[self.slice.len..]), mem.as_bytes(elem))
+	}
+	$fill_with := fn(self: ^Self, elem: ^T): void {
+		self.slice.len = self.cap
+		mem.fill(mem.as_bytes(self.slice), mem.as_bytes(elem))
+	}
 	$deinit := fn(self: ^Self): void {
 		self.allocator.dealloc(T, self.slice[0..self.cap])
 		self.* = idk
@@ -66,6 +74,11 @@ Vec := fn(T: type, A: type): type return struct {
 		return self.get_unchecked(n)
 	}
 	$get_unchecked := fn(self: ^Self, n: uint): T return self.slice[n]
+	set := fn(self: ^Self, n: uint, elem: T): void {
+		if n >= self.slice.len return null
+		self.set_unchecked(n, elem)
+	}
+	$set_unchecked := fn(self: ^Self, n: uint, elem: T): void self.slice[n] = elem
 	get_ref := fn(self: ^Self, n: uint): ?^T {
 		if n >= self.slice.len return null
 		return self.get_ref_unchecked(n)

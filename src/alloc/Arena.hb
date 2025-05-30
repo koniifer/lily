@@ -1,4 +1,4 @@
-lily.{target, mem} := @use("../lib.hb")
+lily.{target, mem, config} := @use("../lib.hb")
 
 AllocationHeader := struct {
 	.cap: uint;
@@ -35,8 +35,8 @@ alloc := fn(self: ^Self, $T: type, count: uint): ?[]T {
 
 	if self.allocation == null {
 		new_header := AllocationHeader.new(size)
-		// todo: handle cleanly
-		if new_header == null die
+		if new_header == null return null
+
 		self.allocation = new_header
 		header = @bit_cast(new_header)
 	}
@@ -48,8 +48,7 @@ alloc := fn(self: ^Self, $T: type, count: uint): ?[]T {
 		}
 		if header.next == null {
 			header.next = AllocationHeader.new(size)
-			// todo: handle cleanly
-			if header.next == null die
+			if header.next == null return null
 		}
 		header = @bit_cast(header.next)
 	}

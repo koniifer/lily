@@ -1,4 +1,4 @@
-lily.{target, iter: .{Iterator, Next}, config, TypeInfo} := @use("lib.hb")
+lily.{target, iter: .{Iterator, Next}, config, TypeInfo, math} := @use("lib.hb")
 
 $size := fn($T: type, count: uint): uint {
 	return @size_of(T) * count
@@ -6,21 +6,52 @@ $size := fn($T: type, count: uint): uint {
 
 /// safety: assumes align != 0
 $forward_align := fn(ptr: ^u8, _align: uint): ^u8 {
-	return @bit_cast((@bit_cast(ptr) + _align - 1) / _align * _align)
+	$if config.optimise < .ReleaseFast {
+		if _align == 0 lily.panic("forward_align: align was zero")
+	}
+	return @bit_cast((@as(uint, @bit_cast(ptr)) + _align - 1) / _align * _align)
 }
 
 /// safety: assumes align != 0
 $backward_align := fn(ptr: ^u8, _align: uint): ^u8 {
-	return @bit_cast(@bit_cast(ptr) / _align * _align)
+	$if config.optimise < .ReleaseFast {
+		if _align == 0 lily.panic("backward_align: align was zero")
+	}
+	return @bit_cast(@as(uint, @bit_cast(ptr)) / _align * _align)
+}
+
+/// safety: assumes align is a power of 2
+$forward_align_pow2 := fn(ptr: ^u8, _align: uint): uint {
+	$if config.optimise < .ReleaseFast {
+		if !math.int_is_power_of_two_or_zero(_align) lily.panic("forward_align_pow2: align was not a power of 2")
+	}
+	return @bit_cast(@as(uint, @bit_cast(ptr)) + (_align - 1) & -_align)
+}
+
+/// safety: assumes align is a power of 2
+$backward_align_pow2 := fn(ptr: ^u8, _align: uint): uint {
+	$if config.optimise < .ReleaseFast {
+		if !math.int_is_power_of_two_or_zero(_align) lily.panic("backward_align_pow2: align was not a power of 2")
+	}
+	return @bit_cast(@as(uint, @bit_cast(ptr)) & -_align)
 }
 
 $is_aligned := fn(ptr: ^u8, _align: uint): bool {
-	return @bit_cast(ptr) % _align == 0
+	$if config.optimise < .ReleaseFast {
+		if _align == 0 lily.panic("is_aligned: align was zero")
+	}
+	return @as(uint, @bit_cast(ptr)) % _align == 0
 }
 
+// maybe return 0 ptr here if ReleaseFast
 $dangling := fn($T: type): ^T {
 	$if TypeInfo(T).kind == .Optional @error(T, " is an optional pointer. use `null` instead.")
 	return @bit_cast(@align_of(T))
+}
+
+$is_dangling := fn(ptr: @Any()): bool {
+	$if TypeInfo(@TypeOf(ptr)).kind != .Pointer @error(@TypeOf(ptr), " is not a pointer.")
+	return ptr == @bit_cast(@align_of(@TypeOf(ptr)))
 }
 
 $as_bytes := fn(v: @Any()): []u8 {
@@ -35,6 +66,9 @@ $as_bytes := fn(v: @Any()): []u8 {
 $to_owned := fn($T: type, slice: []u8): T {
 	$match TypeInfo(T).kind {
 		.Array => {
+			$if config.optimise < .ReleaseFast {
+				if @len_of(T) != slice.len lily.panic("to_owned: slice length did not match array length")
+			}
 			ret: T = idk
 			copy(ret[..], slice)
 			return ret
@@ -82,7 +116,7 @@ equals := fn(lhs: []u8, rhs: []u8): bool {
 	if lhs.len != rhs.len return false
 	if lhs.ptr == rhs.ptr return true
 	i := 0
-	loop if i == lhs.len break else {
+	loop if i >= lhs.len | i >= rhs.len break else {
 		if lhs[i] != rhs[i] return false
 		i += 1
 	}

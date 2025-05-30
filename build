@@ -8,7 +8,7 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.eu/mlokis/hblang.git"
-readonly HBLANG_COMMIT="9e9c6cfb2ab0eb43acb684cc3586f0c61c990207"
+readonly HBLANG_COMMIT="b7fcc2ca41cc9b1d55a4a83f1eff8dce6ece1467"
 readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
 readonly HBC_BINARY="hbc"
 readonly HBC_TESTS="${HBC_TESTS:-0}"

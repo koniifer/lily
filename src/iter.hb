@@ -1,4 +1,4 @@
-lily.{TypeInfo, alloc: .{Vec}} := @use("lib.hb")
+lily.{TypeInfo, collections: .{Vec}} := @use("lib.hb")
 
 Next := fn(T: type): type return struct {
 	.finished: bool;

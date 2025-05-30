@@ -18,7 +18,7 @@ $log := fn(level: LogLevel, str: []u8): void {
 	}
 }
 
-// type here used as workaround for comptime
+// type here used as workaround for comptime (and lack of inlining)
 $log_builder := fn($level: type): type {
 	$if level.inner > config.min_loglevel {
 		return fn(message: []u8): void {
