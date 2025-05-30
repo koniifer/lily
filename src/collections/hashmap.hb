@@ -22,7 +22,8 @@ $_entry_align := fn($K: type, $V: type): uint {
 HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	.entries: Vec(Entry(K, V), A);
 	.hasher: H;
-	.size: uint
+	.size: uint;
+	// .tombstones: uint
 
 	Self := @CurrentScope()
 
@@ -48,20 +49,14 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		self.hasher.write(key)
 		return self.hasher.finish()
 	}
-	$hash_key_2 := fn(self: ^Self, key: K): uint {
-		self.hasher.reset()
-		self.hasher.write(key)
-		// ! no apparent penalty for avoiding this. i am cautious though.
-		// self.hasher.write(1234567890)
-		return self.hasher.finish() | 1
-	}
-	_rehash := fn(self: ^Self, new_cap: uint): void {
-		new_entries := Vec(Entry(K, V), A).new_with_capacity(self.entries.allocator, new_cap)
+	_rehash := fn(self: ^Self): void {
+		new_entries := Vec(Entry(K, V), A).new_with_capacity(self.entries.allocator, self.entries.cap * 2)
 		new_entries.fill_with(&@as(Entry(K, V), .(idk, idk, .Vacant)))
 
 		old_entries := self.entries
 		self.entries = new_entries
 		self.size = 0
+		// self.tombstones = 0
 
 		i := 0
 		loop if i >= old_entries.cap break else {
@@ -74,23 +69,34 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 
 		old_entries.deinit()
 	}
+	// todo: compact using number of tombstones
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
-		if self.size * 10 >= self.entries.cap * 7 {
-			self._rehash(self.entries.cap * 2)
+		// if (self.size + self.tombstones) * 2 >= self.entries.cap {
+		if self.size * 2 >= self.entries.cap {
+			self._rehash()
 		}
 		mask := self.entries.cap - 1
-		start_idx := self.hash_key(key) & mask
-		step := self.hash_key_2(key)
+		hash := self.hash_key(key)
+		start_idx := hash & mask
+		step := hash >> 32 | 1
 		idx := start_idx
 		entry: ^Entry(K, V) = idk
+		// tombstone: ?^Entry(K, V) = null
 		loop {
 			entry = self.entries.get_ref_unchecked(idx)
 			match entry.status {
 				.Occupied => if entry.key == key {
 					entry.value = value
 					return &entry.value
+				
+				/* .Deleted => if tombstone == null {
+				 	tombstone = entry
+				 	self.tombstones -= 1
+				 }, */},
+				_ => {
+					// if tombstone != null entry = tombstone.?
+					break
 				},
-				_ => break,
 			}
 			idx = idx + step & mask
 			if start_idx == idx return null
@@ -103,8 +109,9 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	}
 	get := fn(self: ^Self, key: K): ?^V {
 		mask := self.entries.cap - 1
-		start_idx := self.hash_key(key) & mask
-		step := self.hash_key_2(key)
+		hash := self.hash_key(key)
+		start_idx := hash & mask
+		step := hash >> 32 | 1
 		idx := start_idx
 		loop {
 			entry := self.entries.get_ref_unchecked(idx)
@@ -120,8 +127,9 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	}
 	remove := fn(self: ^Self, key: K): ?V {
 		mask := self.entries.cap - 1
-		start_idx := self.hash_key(key) & mask
-		step := self.hash_key_2(key)
+		hash := self.hash_key(key)
+		start_idx := hash & mask
+		step := hash >> 32 | 1
 		idx := start_idx
 		loop {
 			entry := self.entries.get_ref_unchecked(idx)
@@ -129,6 +137,7 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 				.Occupied => if entry.key == key {
 					entry.status = .Deleted
 					self.size -= 1
+					// self.tombstones += 1
 					return entry.value
 				},
 				.Vacant => return null,
