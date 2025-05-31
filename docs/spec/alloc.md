@@ -4,6 +4,7 @@
 > unless otherwise stated, functions can be optionally inline.<br>
 > names of arguments are up to programmer discretion.<br>
 > names and signature of functions must be identical to shown below.
+> allocated blocks of memory must be aligned to @align_of(T)
 
 ```rust
 Allocator := struct {

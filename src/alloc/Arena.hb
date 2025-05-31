@@ -7,9 +7,9 @@ AllocationHeader := struct {
 
 	$new := fn(size: uint): ?^@CurrentScope() {
 		total_size := size + @size_of(@CurrentScope())
-		ptr: ?^@CurrentScope() = @bit_cast(target.alloc(total_size))
+		ptr: ?^u8 = target.alloc(total_size)
 		if ptr == null return null
-		header: ^@CurrentScope() = @bit_cast(ptr)
+		header: ^@CurrentScope() = @bit_cast(ptr.?)
 		header.* = .(
 			target.pages(total_size) * target.page_len() - @size_of(@CurrentScope()),
 			0,
@@ -38,21 +38,26 @@ alloc := fn(self: ^Self, $T: type, count: uint): ?[]T {
 		if new_header == null return null
 
 		self.allocation = new_header
-		header = @bit_cast(new_header)
+		header = new_header.?
 	}
-
+	
 	loop {
-		if header.len + size <= header.cap {
-			header.len += size
-			break
+		base_ptr: ^u8 = @bit_cast(header + 1)
+		current_ptr := base_ptr + header.len
+		aligned_ptr := mem.forward_align(current_ptr, @align_of(T))
+		padding: uint = @bit_cast(aligned_ptr - current_ptr)
+
+		required_size := padding + size
+		if header.len + required_size <= header.cap {
+			header.len += required_size
+			return @as(^T, @bit_cast(aligned_ptr))[0..count]
 		}
 		if header.next == null {
 			header.next = AllocationHeader.new(size)
 			if header.next == null return null
 		}
-		header = @bit_cast(header.next)
+		header = header.next.?
 	}
-	return @as(^T, @bit_cast(@as(^u8, @bit_cast(header + 1)) + header.len - size))[0..count]
 }
 $alloc_zeroed := fn(self: ^Self, $T: type, count: uint): ?[]T {
 	slice := self.alloc(T, count)
