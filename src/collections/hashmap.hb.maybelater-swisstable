@@ -3,11 +3,7 @@ lily.{collections: .{Vec}, iter, TypeInfo, log, mem, target, math} := @use("../l
 Entry := fn($K: type, $V: type): type return struct align(_entry_align(K, V)) {
 	.key: K;
 	.value: V;
-	.status: enum {
-		.Occupied;
-		.Vacant;
-		.Deleted;
-	};
+	.status_hash: u8;
 }
 
 $_entry_align := fn($K: type, $V: type): uint {
@@ -19,25 +15,28 @@ $_entry_align := fn($K: type, $V: type): uint {
 	}
 }
 
+$vacant: u8 = 0x80
+$tombstone: u8 = 0x40
+$occupied: u8 = 0x3F
+
 HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	.entries: Vec(Entry(K, V), A);
 	.hasher: H;
-	.size: uint;
-	.tombstones: uint
+	.size: uint
 
 	Self := @CurrentScope()
 
 	$new := fn(allocator: ^A): Self {
 		entries := Vec(Entry(K, V), A).new_with_capacity(allocator, 32)
-		entries.fill_with(&@as(Entry(K, V), .(idk, idk, .Vacant)))
-		return .(entries, .default(), 0, 0)
+		entries.fill_with(&@as(Entry(K, V), .(idk, idk, vacant)))
+		return .(entries, .default(), 0)
 	}
 	$new_with_args := fn(allocator: ^A, hasher: ?H, capacity: ?uint): Self {
 		if hasher == null hasher = H.default()
 		if capacity == null capacity = 16 else capacity = math.int_next_power_of_two(capacity.?)
 		entries := Vec(Entry(K, V), A).new_with_capacity(allocator, capacity.?)
-		entries.fill_with(&@as(Entry(K, V), .(idk, idk, .Vacant)))
-		return .(entries, hasher.?, 0, 0)
+		entries.fill_with(&@as(Entry(K, V), .(idk, idk, vacant)))
+		return .(entries, hasher.?, capacity.?)
 	}
 	$deinit := fn(self: ^Self): void {
 		self.entries.deinit()
@@ -51,17 +50,16 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	}
 	_rehash := fn(self: ^Self): void {
 		new_entries := Vec(Entry(K, V), A).new_with_capacity(self.entries.allocator, self.entries.cap * 2)
-		new_entries.fill_with(&@as(Entry(K, V), .(idk, idk, .Vacant)))
+		new_entries.fill_with(&@as(Entry(K, V), .(idk, idk, vacant)))
 
 		old_entries := self.entries
 		self.entries = new_entries
 		self.size = 0
-		self.tombstones = 0
 
 		i := 0
 		loop if i >= old_entries.cap break else {
 			old_entry := old_entries.get_ref_unchecked(i)
-			if old_entry.status == .Occupied {
+			if (old_entry.status_hash & occupied) == old_entry.status_hash {
 				_ = @inline(self.insert, old_entry.key, old_entry.value)
 			}
 			i += 1
@@ -69,57 +67,63 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 
 		old_entries.deinit()
 	}
-	// todo: compact using number of tombstones
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
 		if self.size * 2 >= self.entries.cap {
 			self._rehash()
 		}
 		mask := self.entries.cap - 1
 		hash := self.hash_key(key)
+		short_hash: u8 = @int_cast(hash >> 57) & occupied
 		start_idx := hash & mask
 		step := hash >> 32 | 1
 		idx := start_idx
 		entry: ^Entry(K, V) = idk
-		tombstone: ?^Entry(K, V) = null
-
+		candidate: ?^Entry(K, V) = null
 		loop {
 			entry = self.entries.get_ref_unchecked(idx)
-			match entry.status {
-				.Occupied => if entry.key == key {
+			$Ty := TypeInfo(K)
+			if entry.status_hash == vacant {
+				break
+			} else if entry.status_hash == tombstone {
+				if candidate == null candidate = entry
+			} else $if Ty.is_int | Ty.is_float | Ty.is_bool | Ty.internal_kind == .Pointer {
+				if entry.key == key {
 					entry.value = value
 					return &entry.value
-					},
-				.Deleted => if tombstone == null {
-				 	tombstone = entry
-				 	self.tombstones -= 1
-				 },
-				_ => {
-					if tombstone != null entry = tombstone.?
-					break
-				},
+				}
+			} else if entry.status_hash == short_hash {
+				if entry.key == key {
+					entry.value = value
+					return &entry.value
+				}
 			}
 			idx = idx + step & mask
 			if start_idx == idx return null
 		}
+
+		if candidate != null entry = candidate.?
 		entry.key = key
 		entry.value = value
-		entry.status = .Occupied
+		entry.status_hash = short_hash
 		self.size += 1
 		return &entry.value
 	}
 	get := fn(self: ^Self, key: K): ?^V {
 		mask := self.entries.cap - 1
 		hash := self.hash_key(key)
+		short_hash: u8 = @int_cast(hash >> 57) & occupied
 		start_idx := hash & mask
 		step := hash >> 32 | 1
 		idx := start_idx
 		loop {
 			entry := self.entries.get_ref_unchecked(idx)
-			match entry.status {
-				.Occupied => if entry.key == key return &entry.value,
-				.Vacant => return null,
-				_ => {
-				},
+			if entry.status_hash == vacant return null else {
+				$Ty := TypeInfo(K)
+				$if Ty.is_int | Ty.is_float | Ty.is_bool | Ty.internal_kind == .Pointer {
+					if entry.key == key return &entry.value
+				} else if entry.status_hash == short_hash & entry.status_hash != tombstone {
+					if entry.key == key return &entry.value
+				}
 			}
 			idx = idx + step & mask
 			if start_idx == idx return null
@@ -128,21 +132,27 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	remove := fn(self: ^Self, key: K): ?V {
 		mask := self.entries.cap - 1
 		hash := self.hash_key(key)
+		short_hash: u8 = @int_cast(hash >> 57) & occupied
 		start_idx := hash & mask
 		step := hash >> 32 | 1
 		idx := start_idx
 		loop {
 			entry := self.entries.get_ref_unchecked(idx)
-			match entry.status {
-				.Occupied => if entry.key == key {
-					entry.status = .Deleted
-					self.size -= 1
-					self.tombstones += 1
-					return entry.value
-				},
-				.Vacant => return null,
-				_ => {
-				},
+			if entry.status_hash == vacant return null else {
+				$Ty := TypeInfo(K)
+				$if Ty.is_int | Ty.is_float | Ty.is_bool | Ty.internal_kind == .Pointer {
+					if entry.key == key {
+						entry.status_hash = tombstone
+						self.size -= 1
+						return entry.value
+					}
+				} else if entry.status_hash == short_hash & entry.status_hash != tombstone {
+					if entry.key == key {
+						entry.status_hash = tombstone
+						self.size -= 1
+						return entry.value
+					}
+				}
 			}
 			idx = idx + step & mask
 			if start_idx == idx return null
