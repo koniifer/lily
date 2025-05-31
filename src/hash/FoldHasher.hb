@@ -30,89 +30,88 @@
 
 lily.{TypeInfo, mem, target} := @use("../lib.hb")
 
-// todo: possibly replace uint with u64 for consistency
-FoldHasher := struct {
-	.accumulator: uint;
-	.original_seed: uint;
-	.fold_seed: uint;
-	.expand_seed: uint;
-	.expand_seed2: uint;
-	.expand_seed3: uint
+FoldHasher := @CurrentScope();
 
-	$new := fn(per_hasher_seed: uint): FoldHasher {
-		return .(
-			per_hasher_seed,
-			per_hasher_seed,
-			0x452821E638D01377,
-			0xBE5466CF34E90C6C,
-			0xC0AC29B7C97C50DD,
-			0x3F84D5B5B5470917,
+.accumulator: uint;
+.original_seed: uint;
+.fold_seed: uint;
+.expand_seed: uint;
+.expand_seed2: uint;
+.expand_seed3: uint
+
+$new := fn(per_hasher_seed: uint): FoldHasher {
+	return .(
+		per_hasher_seed,
+		per_hasher_seed,
+		0x452821E638D01377,
+		0xBE5466CF34E90C6C,
+		0xC0AC29B7C97C50DD,
+		0x3F84D5B5B5470917,
+	)
+}
+$deinit := fn(self: ^FoldHasher): void self.* = idk
+$default := fn(): FoldHasher {
+	a := 0
+	target.rand_fill(@bit_cast(&a), @size_of(uint))
+	return .new(a)
+}
+write := fn(self: ^FoldHasher, _w: @Any()): void {
+	$T := TypeInfo(@TypeOf(_w))
+	$if T.internal_kind == .Struct & T.offset != 1 {
+		@error("Does not support structs of align != 1 (or single field) yet.")
+	}
+
+	w: []u8 = idk
+
+	$if T.internal_kind == .SliceOrArray {
+		w = mem.as_bytes(_w[..])
+	} else $if T.internal_kind == .Pointer {
+		w = mem.as_bytes(_w)
+	} else {
+		w = mem.as_bytes(&_w)
+	}
+
+	len := w.len
+	base_seed := rotate_right(self.accumulator, @int_cast(len))
+	if len <= 16 {
+		ptr := w.ptr
+		s0 := base_seed
+		s1 := self.expand_seed
+		if len >= 8 {
+			s0 ^= @as(^uint, @bit_cast(ptr)).*
+			s1 ^= @as(^uint, @bit_cast(ptr + len - 8)).*
+		} else if len >= 4 {
+			s0 ^= @as(^u32, @bit_cast(ptr)).*
+			s0 ^= @as(^u32, @bit_cast(ptr + len - 4)).*
+		} else if len > 0 {
+			lo := w[0]
+			mid := w[len >> 1]
+			hi := w[len - 1]
+			s0 ^= lo
+			s1 ^= @int_cast(hi) << 8 | mid
+		}
+		self.accumulator = folded_multiply(s0, s1)
+	} else if len < 256 {
+		self.accumulator = hash_bytes_medium(
+			w,
+			base_seed,
+			base_seed + self.expand_seed,
+			self.fold_seed,
+		)
+	} else {
+		self.accumulator = hash_bytes_long(
+			w,
+			base_seed,
+			base_seed + self.expand_seed,
+			base_seed + self.expand_seed2,
+			base_seed + self.expand_seed3,
+			self.fold_seed,
 		)
 	}
-	$deinit := fn(self: ^FoldHasher): void self.* = idk
-	$default := fn(): FoldHasher {
-		a := 0
-		target.rand_fill(@bit_cast(&a), @size_of(uint))
-		return .new(a)
-	}
-	write := fn(self: ^FoldHasher, _w: @Any()): void {
-		$T := TypeInfo(@TypeOf(_w))
-		$if T.internal_kind == .Struct & T.offset != 1 {
-			@error("Does not support structs of align != 1 (or single field) yet.")
-		}
-
-		w: []u8 = idk
-
-		$if T.internal_kind == .SliceOrArray {
-			w = mem.as_bytes(_w[..])
-		} else $if T.internal_kind == .Pointer {
-			w = mem.as_bytes(_w)
-		} else {
-			w = mem.as_bytes(&_w)
-		}
-
-		len := w.len
-		base_seed := rotate_right(self.accumulator, @int_cast(len))
-		if len <= 16 {
-			ptr := w.ptr
-			s0 := base_seed
-			s1 := self.expand_seed
-			if len >= 8 {
-				s0 ^= @as(^uint, @bit_cast(ptr)).*
-				s1 ^= @as(^uint, @bit_cast(ptr + len - 8)).*
-			} else if len >= 4 {
-				s0 ^= @as(^u32, @bit_cast(ptr)).*
-				s0 ^= @as(^u32, @bit_cast(ptr + len - 4)).*
-			} else if len > 0 {
-				lo := w[0]
-				mid := w[len >> 1]
-				hi := w[len - 1]
-				s0 ^= lo
-				s1 ^= @int_cast(hi) << 8 | mid
-			}
-			self.accumulator = folded_multiply(s0, s1)
-		} else if len < 256 {
-			self.accumulator = hash_bytes_medium(
-				w,
-				base_seed,
-				base_seed + self.expand_seed,
-				self.fold_seed,
-			)
-		} else {
-			self.accumulator = hash_bytes_long(
-				w,
-				base_seed,
-				base_seed + self.expand_seed,
-				base_seed + self.expand_seed2,
-				base_seed + self.expand_seed3,
-				self.fold_seed,
-			)
-		}
-	}
-
-	$finish := fn(self: ^FoldHasher): uint return self.accumulator
-	$reset := fn(self: ^FoldHasher): void self.accumulator = self.original_seed
 }
+
+$finish := fn(self: ^FoldHasher): uint return self.accumulator
+$reset := fn(self: ^FoldHasher): void self.accumulator = self.original_seed
 
 $folded_multiply := fn(x: uint, y: uint): uint {
 	lx: u32 = @int_cast(x)

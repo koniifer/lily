@@ -211,6 +211,8 @@ fmt_container := fn(buf: []u8, v: @Any()): uint {
 }
 
 format := fn(buf: []u8, v: @Any()): uint {
+	$if @compiles(@TypeOf(v)._fmt) return v._fmt(buf)
+
 	T := TypeInfo(@TypeOf(v))
 	$match T.internal_kind {
 		.Pointer => return fmt_int(buf, @as(uint, @bit_cast(v)), 16),

@@ -1,1 +1,1 @@
-.{FoldHasher} := @use("foldhash.hb")
+FoldHasher := @use("FoldHasher.hb")

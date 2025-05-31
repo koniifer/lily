@@ -112,4 +112,7 @@ Vec := fn(T: type, A: type): type return struct {
 	$len := fn(self: ^Self): uint {
 		return self.slice.len
 	}
+	$_fmt := fn(self: ^Self, buf: []u8): uint {
+		return lily.fmt.fmt_container(buf, self.slice)
+	}
 }

@@ -7,7 +7,11 @@ Entry := fn($K: type, $V: type): type return struct align(_entry_align(K, V)) {
 		.Occupied;
 		.Vacant;
 		.Deleted;
-	};
+	}
+
+	$_fmt := fn(self: ^@CurrentScope(), buf: []u8): uint {
+		return lily.fmt.format(buf, .(self.key, self.value))
+	}
 }
 
 $_entry_align := fn($K: type, $V: type): uint {
@@ -147,5 +151,27 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 			idx = idx + step & mask
 			if start_idx == idx return null
 		}
+	}
+	$_fmt := fn(self: ^Self, buf: []u8): uint {
+		i := 0
+		mem.copy(buf, @name_of(Entry(K, V)))
+		len := @name_of(Entry(K, V)).len
+		mem.copy(buf[len..], ".[")
+		len += 2
+		comma := false
+		loop if i == self.entries.cap break else {
+			entry := self.entries.get_ref_unchecked(i)
+			if entry.status == .Occupied {
+				if comma {
+					mem.copy(buf[len..], ", ")
+					len += 2
+				}
+				len += entry._fmt(buf[len..])
+				comma = true
+			}
+			i += 1
+		}
+		buf[len] = ']'
+		return len + 1
 	}
 }
