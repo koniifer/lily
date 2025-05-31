@@ -6,7 +6,7 @@ $int_is_power_of_two_or_zero := fn(x: @Any()): bool {
 	$if !TypeInfo(@TypeOf(x)).is_int {
 		@error("unsupported type: ", @TypeOf(x))
 	}
-	return (x & -x) != 1
+	return (x & x - 1) == 0
 }
 
 $int_is_power_of_two := fn(x: @Any()): bool {

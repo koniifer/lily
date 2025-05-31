@@ -14,6 +14,6 @@ main := fn(): uint {
 
 	len = fmt.fmt_int(scratch[..], 5050, 16)
 	if len != 6 return 1
-	if scratch[0] != '0' | scratch[1] != 'x' | scratch[2] != '1' | scratch[3] != '3' | scratch[4] != 'B' | scratch[5] != 'A' return 1
+	if scratch[0] != '0' | scratch[1] != 'x' | scratch[2] != '1' | scratch[3] != '3' | scratch[4] != 'b' | scratch[5] != 'a' return 1
 	return 0
 }

@@ -4,43 +4,27 @@ $size := fn($T: type, count: uint): uint {
 	return @size_of(T) * count
 }
 
-/// safety: assumes align != 0
+/// safety: assumes align is a power of 2
 $forward_align := fn(ptr: ^u8, _align: uint): ^u8 {
 	$if config.optimise < .ReleaseFast {
-		if _align == 0 lily.panic("forward_align: align was zero")
-	}
-	return @bit_cast((@as(uint, @bit_cast(ptr)) + _align - 1) / _align * _align)
-}
-
-/// safety: assumes align != 0
-$backward_align := fn(ptr: ^u8, _align: uint): ^u8 {
-	$if config.optimise < .ReleaseFast {
-		if _align == 0 lily.panic("backward_align: align was zero")
-	}
-	return @bit_cast(@as(uint, @bit_cast(ptr)) / _align * _align)
-}
-
-/// safety: assumes align is a power of 2
-$forward_align_pow2 := fn(ptr: ^u8, _align: uint): uint {
-	$if config.optimise < .ReleaseFast {
-		if !math.int_is_power_of_two_or_zero(_align) lily.panic("forward_align_pow2: align was not a power of 2")
+		if !math.int_is_power_of_two(_align) lily.panic("forward_align: align was not a power of 2")
 	}
 	return @bit_cast(@as(uint, @bit_cast(ptr)) + (_align - 1) & -_align)
 }
 
 /// safety: assumes align is a power of 2
-$backward_align_pow2 := fn(ptr: ^u8, _align: uint): uint {
+$backward_align := fn(ptr: ^u8, _align: uint): ^u8 {
 	$if config.optimise < .ReleaseFast {
-		if !math.int_is_power_of_two_or_zero(_align) lily.panic("backward_align_pow2: align was not a power of 2")
+		if !math.int_is_power_of_two(_align) lily.panic("backward_align: align was not a power of 2")
 	}
 	return @bit_cast(@as(uint, @bit_cast(ptr)) & -_align)
 }
 
 $is_aligned := fn(ptr: ^u8, _align: uint): bool {
 	$if config.optimise < .ReleaseFast {
-		if _align == 0 lily.panic("is_aligned: align was zero")
+		if !math.int_is_power_of_two(_align) lily.panic("is_aligned: align was not a power of 2")
 	}
-	return @as(uint, @bit_cast(ptr)) % _align == 0
+	return (@as(uint, @bit_cast(ptr)) & _align - 1) == 0
 }
 
 // maybe return 0 ptr here if ReleaseFast

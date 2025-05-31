@@ -40,7 +40,7 @@ alloc := fn(self: ^Self, $T: type, count: uint): ?[]T {
 		self.allocation = new_header
 		header = new_header.?
 	}
-	
+
 	loop {
 		base_ptr: ^u8 = @bit_cast(header + 1)
 		current_ptr := base_ptr + header.len

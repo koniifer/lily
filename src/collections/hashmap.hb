@@ -88,11 +88,11 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 				.Occupied => if entry.key == key {
 					entry.value = value
 					return &entry.value
-					},
+				},
 				.Deleted => if tombstone == null {
-				 	tombstone = entry
-				 	self.tombstones -= 1
-				 },
+					tombstone = entry
+					self.tombstones -= 1
+				},
 				_ => {
 					if tombstone != null entry = tombstone.?
 					break

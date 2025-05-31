@@ -31,7 +31,7 @@ fmt_int := fn(buf: []u8, v: @Any(), radix: @TypeOf(v)): uint {
 		remainder: u8 = @int_cast(v % radix)
 		v /= radix
 		if remainder > 9 {
-			buf[i] = remainder - 10 + 'A'
+			buf[i] = remainder - 10 + 'a'
 		} else {
 			buf[i] = remainder + '0'
 		}
@@ -91,7 +91,7 @@ fmt_float := fn(buf: []u8, v: @Any(), precision: uint, radix: int): uint {
 			fractional_part *= @int_to_float(radix)
 			digit := @float_to_int(fractional_part)
 			if digit > 9 {
-				buf[i] = @int_cast(digit - 10 + 'A')
+				buf[i] = @int_cast(digit - 10 + 'a')
 			} else {
 				buf[i] = @int_cast(digit + '0')
 			}
