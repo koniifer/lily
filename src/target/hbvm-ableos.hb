@@ -44,8 +44,9 @@ $exit_group := fn(code: uint): never die
 
 $rand_fill := fn(dest: ^u8, len: uint): void return @ecall(3, 4, dest, len)
 
-$proc_fork := fn(): uint return @ecall(3, 7)
-$proc_spawn := fn(executable: []u8): uint {
+// todo: failure state
+$proc_fork := fn(): ?uint return @as(uint, @ecall(3, 7))
+$proc_spawn := fn(executable: []u8): ?uint {
 	return @ecall(3, 6, executable.ptr, executable.len)
 }
 

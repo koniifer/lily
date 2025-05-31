@@ -8,7 +8,7 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.eu/mlokis/hblang.git"
-readonly HBLANG_COMMIT="92476533d3dc297ee07a817aa724c99db596939c"
+readonly HBLANG_COMMIT="c0236a848add9f51cd4b05bd44b9169700aeb7a1"
 readonly HBC_TARGET="${HBC_TARGET:-hbvm-ableos}"
 readonly HBC_OPT_LEVEL="${HBC_OPT_LEVEL:-Debug}"
 readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-} --target $HBC_TARGET"
@@ -79,13 +79,22 @@ do_test() {
 
 main() {
 	needs_linking=0
+
+	ext=""
 	case $HBC_TARGET in
-	x86_64-linux) case $HBC_FLAGS in
+	x86_64-linux) {
+		ext="o"
+		case $HBC_FLAGS in
 		*--dump-asm*) ;;
 		*) needs_linking=1 ;;
-		esac ;;
-	hbvm-ableos) ;;
+		esac
+	} ;;
+	hbvm-ableos) ext="axe" ;;
 	*) die 1 "unknown target: $HBC_TARGET" ;;
+	esac
+
+	case $HBC_FLAGS in
+	*--dump-asm*) ext="asm" ;;
 	esac
 
 	mkdir -p "$LILY_BUILD_DIR/$HBC_TARGET" || die 1 "failed to create build directory"
@@ -119,9 +128,6 @@ main() {
 
 	inp="${1:-main.hb}"
 	[ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
-
-	[ "$HBC_TARGET" = "ableos" ] && ext="axe"
-	[ "$HBC_TARGET" = "x86_64-linux" ] && ext="o"
 
 	pretty_name="$(basename "$inp")"
 	pretty_name="${pretty_name%.*}"

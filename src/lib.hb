@@ -45,6 +45,7 @@ $panic := fn(context: @Any()): never {
 		return target.exit_group(1)
 	}
 	$if TypeInfo(@TypeOf(context)).is_int {
+		// log.error("PANIC: aborted unexpectedly")
 		return target.exit_group(context)
 	}
 	$if @TypeOf(context) != void & @TypeOf(context) != @TypeOf(.()) {
