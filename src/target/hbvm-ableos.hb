@@ -2,12 +2,8 @@
 
 LogEcall := struct align(1){.level: LogLevel; .str_ptr: ^u8; .str_len: uint}
 
-$page_len := fn(): uint {
-	return 4096
-}
-$pages := fn(len: uint): uint {
-	return (len + page_len() - 1) / page_len()
-}
+$page_len := fn(): uint return 4096
+$pages := fn(len: uint): uint return (len + page_len() - 1) / page_len()
 
 AllocEcall := struct align(1){.pad: u8; .pages_new: uint; .zeroed: bool}
 $alloc := fn(len: uint): ?^u8 {
@@ -43,9 +39,8 @@ $memfill := fn(dest: ^u8, src: ^u8, count: uint, len: uint): void {
 	@ecall(3, 2, FillEcall.(5, count, len, src, dest), @size_of(FillEcall))
 }
 
-$exit := fn(code: u8): void {
-	@error("todo: ", exit)
-}
+$exit := fn(code: uint): never die
+$exit_group := fn(code: uint): never die
 
 $rand_fill := fn(dest: ^u8, len: uint): void return @ecall(3, 4, dest, len)
 

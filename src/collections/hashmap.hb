@@ -18,7 +18,7 @@ $_entry_align := fn($K: type, $V: type): uint {
 	// in hbvm contexts, penalisation from align = 1 is minimal
 	// and may save some memory
 	$match target.current {
-		.AbleOS => return 1,
+		.hbvm_ableos => return 1,
 		_ => $if @align_of(K) > @align_of(V) return @align_of(K) else return @align_of(V),
 	}
 }

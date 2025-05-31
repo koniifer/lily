@@ -11,6 +11,7 @@
 	memset,
 	memfill,
 	exit,
+	exit_group,
 	rand_fill,
 	proc_fork,
 	proc_spawn,
@@ -24,14 +25,13 @@
 } := lib()
 
 Target := enum {
-	.AbleOS;
-	.Unknown;
+	.hbvm_ableos;
+	.x86_64_linux;
 }
 
 _current := fn(): Target {
-	$if @target("ableos") {
-		return .AbleOS
-	}
+	$if @target("hbvm-ableos") return .hbvm_ableos
+	$if @target("x86_64-linux") return .x86_64_linux
 	@error("unknown target")
 }
 
@@ -39,7 +39,7 @@ $current := _current()
 
 lib := fn(): type {
 	$match _current() {
-		.AbleOS => return @use("ableos.hb"),
-		.Unknown => @error("unknown target"),
+		.hbvm_ableos => return @use("hbvm-ableos.hb"),
+		.x86_64_linux => return @use("x86_64-linux.hb"),
 	}
 }

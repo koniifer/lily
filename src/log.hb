@@ -13,7 +13,7 @@ $log := fn(level: LogLevel, str: []u8): void {
 		return
 	}
 	$match target.current {
-		.AbleOS => return @ecall(3, 1, target.LogEcall.(level, str.ptr, str.len), @size_of(target.LogEcall)),
+		.hbvm_ableos => return @ecall(3, 1, target.LogEcall.(level, str.ptr, str.len), @size_of(target.LogEcall)),
 		_ => @error("target does not support logging"),
 	}
 }
@@ -25,7 +25,7 @@ $log_builder := fn($level: type): type {
 		}
 	} else {
 		return fn(message: []u8): void $match target.current {
-			.AbleOS => return @ecall(3, 1, target.LogEcall.(level.inner, message.ptr, message.len), @size_of(target.LogEcall)),
+			.hbvm_ableos => return @ecall(3, 1, target.LogEcall.(level.inner, message.ptr, message.len), @size_of(target.LogEcall)),
 			_ => @error("target does not support logging"),
 		}
 	}

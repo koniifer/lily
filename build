@@ -8,8 +8,10 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.eu/mlokis/hblang.git"
-readonly HBLANG_COMMIT="883a31ecdaae7cef4be9f77de1dff3bc8680c39a"
-readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-}"
+readonly HBLANG_COMMIT="92476533d3dc297ee07a817aa724c99db596939c"
+readonly HBC_TARGET="${HBC_TARGET:-hbvm-ableos}"
+readonly HBC_OPT_LEVEL="${HBC_OPT_LEVEL:-Debug}"
+readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-} --target $HBC_TARGET"
 readonly HBC_BINARY="hbc"
 readonly HBC_TESTS="${HBC_TESTS:-0}"
 
@@ -57,31 +59,40 @@ fetch_step() {
 	cd "$LILY_SCRIPT_DIR" || die 1 "failed to return to script directory"
 }
 
+do_test() {
+	# shellcheck disable=SC2086
+	$HBC_BINARY $HBC_FLAGS --vendored-test "$file" >"$LILY_BUILD_DIR/$HBC_TARGET/tests/$test_name" 2>&1
+	exit="$?"
+	if [ ! $exit = 0 ]; then
+		error "\e[1;31m⨯\033[0m $test_name \e[1;30m(exit=\e[1;31m$exit\e[1;30m) ($(basename "$LILY_BUILD_DIR")/$HBC_TARGET/tests/$test_name)"
+		echo "0" >>"$result_file"
+	else
+		# shellcheck disable=SC2086
+		len=$($HBC_BINARY $HBC_FLAGS "$file" | wc -c | numfmt --to=iec-i)
+		log "✓ $test_name \e[1;30m(size=\e[1;32m$len\e[1;30m)"
+		# log "\e[0;32m✓\033[0m $test_name"
+		echo "1" >>"$result_file"
+		# surely good idea.
+		rm "$LILY_BUILD_DIR/$HBC_TARGET/tests/$test_name"
+	fi
+}
+
 main() {
-	mkdir -p "$LILY_BUILD_DIR" || die 1 "failed to create build directory"
+	needs_linking=0
+	case $HBC_TARGET in
+	x86_64-linux) case $HBC_FLAGS in
+		*--dump-asm*) ;;
+		*) needs_linking=1 ;;
+		esac ;;
+	hbvm-ableos) ;;
+	*) die 1 "unknown target: $HBC_TARGET" ;;
+	esac
+
+	mkdir -p "$LILY_BUILD_DIR/$HBC_TARGET" || die 1 "failed to create build directory"
 	fetch_step
 
-	do_test() {
-		# shellcheck disable=SC2086
-		$HBC_BINARY $HBC_FLAGS --vendored-test "$file" >"$LILY_BUILD_DIR/$test_name.test" 2>&1
-		exit="$?"
-		if [ ! $exit = 0 ]; then
-			error "\e[1;31m⨯\033[0m $test_name \e[1;30m(exit=\e[1;31m$exit\e[1;30m) ($(basename "$LILY_BUILD_DIR")/$test_name.test)"
-			echo "0" >>"$result_file"
-		else
-			# shellcheck disable=SC2086
-			len=$($HBC_BINARY $HBC_FLAGS "$file" | wc -c | numfmt --to=iec-i)
-			log "✓ $test_name \e[1;30m(size=\e[1;32m$len\e[1;30m)"
-			# log "\e[0;32m✓\033[0m $test_name"
-			echo "1" >>"$result_file"
-			# surely good idea.
-			rm "$LILY_BUILD_DIR/$test_name.test"
-			# shellcheck disable=SC2086
-			$HBC_BINARY $HBC_FLAGS "$file" --fmt >/dev/null 2>&1
-		fi
-	}
-
 	if [ "$HBC_TESTS" = 1 ]; then
+		mkdir -p "$LILY_BUILD_DIR/$HBC_TARGET/tests" || die 1 "failed to create test output directory"
 		tmpfile=$(mktemp)
 		result_file=$(mktemp)
 		find "$LILY_TEST_DIR" -type f >"$tmpfile"
@@ -109,9 +120,18 @@ main() {
 	inp="${1:-main.hb}"
 	[ ! -e "$inp" ] && die 1 "source file '$inp' does not exist"
 
+	[ "$HBC_TARGET" = "ableos" ] && ext="axe"
+	[ "$HBC_TARGET" = "x86_64-linux" ] && ext="o"
+
+	pretty_name="$(basename "$inp")"
+	pretty_name="${pretty_name%.*}"
+
 	# shellcheck disable=SC2086
-	if $HBC_BINARY $HBC_FLAGS "$inp" >"$LILY_BUILD_DIR/out.axe"; then
+	if $HBC_BINARY $HBC_FLAGS "$inp" >"$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name.$ext"; then
 		$HBC_BINARY $HBC_FLAGS "$inp" --fmt >/dev/null 2>&1
+		if [ $needs_linking = 1 ]; then
+			zig cc "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name.$ext" -o "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name"
+		fi
 	else
 		exit $?
 	fi

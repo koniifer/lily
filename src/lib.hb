@@ -42,9 +42,12 @@ $version := Version.(0, 1, 0)
 $panic := fn(context: @Any()): never {
 	$if @TypeOf(context) == []u8 {
 		log.error(context)
-	} else $if @TypeOf(context) == void | @TypeOf(context) == @TypeOf(.()) {
-	} else {
+		return target.exit_group(1)
+	}
+	$if TypeInfo(@TypeOf(context)).is_int {
+		return target.exit_group(context)
+	}
+	$if @TypeOf(context) != void & @TypeOf(context) != @TypeOf(.()) {
 		@error("don't know what to do with this: ", @TypeOf(context))
 	}
-	die
 }
