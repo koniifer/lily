@@ -27,6 +27,7 @@
 Target := enum {
 	.hbvm_ableos;
 	.x86_64_linux;
+	.unknown;
 }
 
 _current := fn(): Target {
@@ -41,5 +42,6 @@ lib := fn(): type {
 	$match _current() {
 		.hbvm_ableos => return @use("hbvm-ableos.hb"),
 		.x86_64_linux => return @use("x86_64-linux.hb"),
+		_ => @error("unknown target"),
 	}
 }

@@ -89,8 +89,8 @@ $set := fn(dest: []u8, src: u8): void {
 
 $fill := fn(dest: []u8, src: []u8): void {
 	$if config.optimise < .ReleaseFast {
-		if src.len > dest.len | overlaps(dest, src) {
-			lily.panic("mem.copy: regions overlap or src bigger than dest")
+		if src.len > dest.len | overlaps(dest, src) | dest.len % src.len != 0 {
+			lily.panic("mem.copy: regions overlap or src bigger than dest, or dest won't perfectly tile src (end gap)")
 		}
 	}
 	target.memfill(dest.ptr, src.ptr, dest.len / src.len, src.len)

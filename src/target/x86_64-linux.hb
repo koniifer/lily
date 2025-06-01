@@ -32,11 +32,78 @@ $realloc := fn(ptr_old: ^u8, len_old: uint, len_new: uint): ?^u8 {
 $sys_munmap := 0xB
 $dealloc := fn(ptr: ^u8, len: uint): void return @syscall(sys_munmap, ptr, len)
 
-$memcopy := fn(dest: ^u8, src: ^u8, len: uint): void @error("todo")
-$memmove := fn(dest: ^u8, src: ^u8, len: uint): void @error("todo")
+$memcopy := fn(dest: ^u8, src: ^u8, len: uint): void {
+	end := src + len
+	loop if src + 8 >= end break else {
+		@as(^uint, @bit_cast(dest)).* = @as(^uint, @bit_cast(src)).*
+		dest += 8
+		src += 8
+	}
+	loop if src >= end break else {
+		dest.* = src.*
+		src += 1
+		dest += 1
+	}
+}
+$memmove := fn(dest: ^u8, src: ^u8, len: uint): void {
+	if lily.mem.overlaps(dest[0..len], src[0..len]) {
+		buf: ^u8 = @syscall(sys_mmap, 0, len, prot_read | prot_write, map_private | map_anonymous, ~0, 0)
+		$if config.optimise < .ReleaseFast {
+			// todo: error msg
+			if buf == map_failed lily.panic(1)
+		}
+		memcopy(buf, src, len)
+		memcopy(dest, buf, len)
+		dealloc(buf, len)
+	} else {
+		memcopy(dest, src, len)
+	}
+}
 
-$memset := fn(dest: ^u8, src: u8, len: uint): void @error("todo")
-$memfill := fn(dest: ^u8, src: ^u8, count: uint, len: uint): void @error("todo")
+$memset := fn(dest: ^u8, src: u8, len: uint): void {
+	if len <= 8 {
+		end := dest + len
+		loop if dest >= end break else {
+			dest.* = src
+			dest += 1
+		}
+		return
+	}
+
+	dest.* = src
+	copied := 1
+	loop if copied >= len break else {
+		copy_size := 0
+		if copied > len - copied {
+			copy_size = len - copied
+		} else copy_size = copied
+		memcopy(dest + copied, dest, copy_size)
+		copied += copy_size
+	}
+}
+$memfill := fn(dest: ^u8, src: ^u8, count: uint, len: uint): void {
+	if count <= 8 {
+		end := dest + count * len
+		loop if dest >= end break else {
+			memcopy(dest, src, len)
+			dest += len
+		}
+		return
+	}
+
+	total_size := count * len
+	memcopy(dest, src, len)
+	copied := len
+
+	loop if copied >= total_size break else {
+		copy_size := 0
+		if copied > total_size - copied {
+			copy_size = total_size - copied
+		} else copy_size = copied
+		memcopy(dest + copied, dest, copy_size)
+		copied += copy_size
+	}
+}
 
 $sys_exit := 0x3C
 $exit := fn(code: uint): never return @syscall(sys_exit, code)
@@ -63,6 +130,7 @@ $proc_spawn := fn(executable: []u8): ?uint {
 		envp := (?^u8).[null]
 		x: void = @syscall(sys_execve, executable.ptr, &argv[0], &envp[0])
 		// if execve returns, it failed
+		// todo: error msg
 		lily.panic(1)
 	}
 	return pid
