@@ -14,26 +14,30 @@ lily.{fmt, log, mem, alloc, target, collections} := @use("lily")
 // }
 
 main := fn(): uint {
-	// ptr := target.alloc(100)
-	// if ptr == null lily.panic(1)
-	// @as(^u64, @bit_cast(ptr.?)).* = 73
+	// arena := alloc.Arena.new()
+	// defer arena.deinit()
+	// vec := collections.Vec(uint, alloc.Arena).new(&arena)
+	// defer vec.deinit()
 
-	// ptr2 := target.alloc(100)
-	// if ptr2 == null lily.panic(2)
+	// i := 0
+	// loop if i == 100 break else {
+	// 	vec.push(i)
+	// 	i += 1
+	// }
 
-	// target.rand_fill(ptr.?, 100)
+	// loop if vec.len() == 0 break else {
+	// 	_ = vec.pop_unchecked()
+	// }
 
-	// target.memcopy(ptr2.?, ptr.?, 100)
+	// return vec.len()
+	// arr := u8.[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+	// x := mem.Writer(arr)
+	// if !x.write(u8.[1, 2, 3][..]) {
+	// 	return 1
+	// }
 
-	// val := (ptr2.? + 99).*
+	r := lily.Result(u8, u8).err(1)
+	v := r.expect("oh no")
 
-	// target.dealloc(ptr2.?, 100)
-	// target.dealloc(ptr.?, 100)
-	// return val
-
-	// x := lily.hash.FoldHasher.default()
-	// x.write(100)
-	// return x.finish()
-	log.print(@as(int, 50))
 	return 0
 }

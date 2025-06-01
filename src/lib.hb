@@ -1,4 +1,5 @@
 .{TypeInfo, InternalKind, Kind} := @use("type.hb")
+result.{Result} := @use("result.hb")
 collections := @use("collections/lib.hb")
 process := @use("process.hb")
 target := @use("target/lib.hb")
@@ -45,7 +46,7 @@ $panic := fn(context: @Any()): never {
 		return target.exit_group(1)
 	}
 	$if TypeInfo(@TypeOf(context)).is_int {
-		// log.error("PANIC: aborted unexpectedly")
+		log.error("panic: aborted unexpectedly.")
 		return target.exit_group(context)
 	}
 	$if @TypeOf(context) != void & @TypeOf(context) != @TypeOf(.()) {

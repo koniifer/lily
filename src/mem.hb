@@ -1,5 +1,33 @@
 lily.{target, iter: .{Iterator, Next}, config, TypeInfo, math} := @use("lib.hb")
 
+// todo: this
+// _Writer := fn($W: type): type return struct {
+// 	.w: W;
+// 	.cursor: uint;
+
+// 	Self := @CurrentScope()
+
+// 	write := fn(self: ^Self, r: @Any()): bool {
+// 		$R := @TypeOf(r)
+// 		// $if TypeInfo(R).kind != .Slice & !@compiles(R.read) {
+// 		// 	@error("don't know how to read from type ", R, " yet")
+// 		// }
+// 		// return false
+// 		$if TypeInfo(R).kind == .Slice & TypeInfo(W).kind == .Slice {
+// 			buf := w[cursor..]
+// 			if buf.len < r.len return false
+// 			move(buf, r)
+// 		}
+// 	}
+// }
+// Writer := fn(w: @Any()): _Writer(@TypeOf(w)) {
+// 	$W := @TypeOf(w)
+// 	$if TypeInfo(W).kind != .Slice & !@compiles(W.write) {
+// 		@error("don't know how to write to type ", W, " yet")
+// 	}
+// 	return .(w, 0)
+// }
+
 $size := fn($T: type, count: uint): uint {
 	return @size_of(T) * count
 }
