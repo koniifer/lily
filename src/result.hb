@@ -21,4 +21,10 @@ Result := fn($T: type, $E: type): type return struct {
 		}
 		return self.inner.ok
 	}
+	$expect_err := fn(self: Self, msg: []u8): E {
+		$if config.optimise < .ReleaseFast {
+			if self.is_ok lily.panic(msg)
+		}
+		return self.inner.err
+	}
 }

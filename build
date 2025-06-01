@@ -8,7 +8,7 @@ readonly LILY_TEST_DIR="${LILY_TEST_DIR:-$LILY_SCRIPT_DIR/hbc-tests}"
 readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 readonly HBLANG_GIT="https://git.ablecorp.eu/mlokis/hblang.git"
-readonly HBLANG_COMMIT="2271500522f6d36ef74c1eaf6a57e14b425af20a"
+readonly HBLANG_COMMIT="3fa4c3845b0a30318fa2fa945ee83dee53738776"
 readonly HBC_TARGET="${HBC_TARGET:-hbvm-ableos}"
 readonly HBC_OPT_LEVEL="${HBC_OPT_LEVEL:-Debug}"
 readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-} --target $HBC_TARGET"
@@ -136,7 +136,7 @@ main() {
 	if $HBC_BINARY $HBC_FLAGS "$inp" >"$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name.$ext"; then
 		$HBC_BINARY $HBC_FLAGS "$inp" --fmt >/dev/null 2>&1
 		if [ $needs_linking = 1 ]; then
-			zig cc "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name.$ext" -o "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name"
+			zig cc "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name.$ext" -o "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name" >/dev/null 2>&1 || die "linking failed"
 		fi
 	else
 		exit $?
