@@ -5,7 +5,7 @@ expectations := .{
 
 lily.{fmt} := @use("../../src/lib.hb")
 
-scratch: [4096]u8 = idk
+scratch: [256]u8 = idk
 
 main := fn(): uint {
 	len := fmt.fmt_int(scratch[..], 4096, 10)

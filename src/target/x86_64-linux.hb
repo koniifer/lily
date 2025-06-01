@@ -34,10 +34,10 @@ $dealloc := fn(ptr: ^u8, len: uint): void return @syscall(sys_munmap, ptr, len)
 
 $memcopy := fn(dest: ^u8, src: ^u8, len: uint): void {
 	end := src + len
-	loop if src + 8 >= end break else {
+	loop if src + @size_of(uint) > end break else {
 		@as(^uint, @bit_cast(dest)).* = @as(^uint, @bit_cast(src)).*
-		dest += 8
-		src += 8
+		dest += @size_of(uint)
+		src += @size_of(uint)
 	}
 	loop if src >= end break else {
 		dest.* = src.*
@@ -82,8 +82,9 @@ $memset := fn(dest: ^u8, src: u8, len: uint): void {
 	}
 }
 $memfill := fn(dest: ^u8, src: ^u8, count: uint, len: uint): void {
+	total_size := count * len
 	if count <= 8 {
-		end := dest + count * len
+		end := dest + total_size
 		loop if dest >= end break else {
 			memcopy(dest, src, len)
 			dest += len
@@ -91,10 +92,8 @@ $memfill := fn(dest: ^u8, src: ^u8, count: uint, len: uint): void {
 		return
 	}
 
-	total_size := count * len
 	memcopy(dest, src, len)
 	copied := len
-
 	loop if copied >= total_size break else {
 		copy_size := 0
 		if copied > total_size - copied {
@@ -111,7 +110,10 @@ $sys_exit_group := 0xE7
 $exit_group := fn(code: uint): never return @syscall(sys_exit_group, code)
 
 $sys_getrandom := 0x13E
-$rand_fill := fn(dest: ^u8, len: uint): void return @syscall(sys_getrandom, dest, len)
+// note to self: the last zero needs to be there
+// i guess the registers are getting clobbered / used
+// probably need to do that for other syscalls too...
+$rand_fill := fn(dest: ^u8, len: uint): void return @syscall(sys_getrandom, dest, len, 0)
 
 $sys_clone := 0x38
 $sys_execve := 0x3B
@@ -121,19 +123,8 @@ $proc_fork := fn(): ?uint {
 	if pid < 0 return null
 	return @as(uint, @int_cast(pid))
 }
-// no clue if this works. expects null-terminated executable.
 $proc_spawn := fn(executable: []u8): ?uint {
-	pid := proc_fork()
-	if pid == null return null
-	if pid.? == 0 {
-		argv := (?^u8).[executable.ptr, null]
-		envp := (?^u8).[null]
-		x: void = @syscall(sys_execve, executable.ptr, &argv[0], &envp[0])
-		// if execve returns, it failed
-		// todo: error msg
-		lily.panic(1)
-	}
-	return pid
+	@error("todo")
 }
 
 $dt_get := fn($T: type, query: []u8): T @error("todo")

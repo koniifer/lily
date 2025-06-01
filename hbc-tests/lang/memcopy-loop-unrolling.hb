@@ -6,14 +6,28 @@ $STATIC_COPY_SIZE := 1024
 
 $memcopy := fn(dest: ^u8, src: ^u8, len: uint): void {
 	end := src + len
-	n := STATIC_COPY_SIZE
-	$loop $if n == 0 break else {
-		loop if src + n > end break else {
-			@as(^[n]u8, @bit_cast(dest)).* = @as(^[n]u8, @bit_cast(src)).*
-			src += n
-			dest += n
+	$if @target("hbvm-ableos") {
+		n := STATIC_COPY_SIZE
+		$loop $if n == 0 break else {
+			loop if src + n > end break else {
+				@as(^[n]u8, @bit_cast(dest)).* = @as(^[n]u8, @bit_cast(src)).*
+				src += n
+				dest += n
+			}
+			n >>= 1
 		}
-		n >>= 1
+	} else {
+		// no longer unrolled loop, but may as well get some use out of this test.
+		loop if src + 8 >= end break else {
+			@as(^uint, @bit_cast(dest)).* = @as(^uint, @bit_cast(src)).*
+			dest += 8
+			src += 8
+		}
+		loop if src >= end break else {
+			dest.* = src.*
+			src += 1
+			dest += 1
+		}
 	}
 }
 
