@@ -1,43 +1,37 @@
-lily.{collections: .{Vec}, iter, TypeInfo, log, mem, target, math} := @use("../lib.hb")
+lily.{iter, TypeInfo, log, mem, target, math} := @use("../lib.hb")
 
-Entry := fn($K: type, $V: type): type return struct align(_entry_align(K, V)) {
+Entry := fn($K: type, $V: type): type return struct align(1) {
 	.key: K;
-	.value: V;
-	.status: enum {
-		.Occupied;
-		.Vacant;
-		.Deleted;
-	}
+	.value: V
 
 	$_fmt := fn(self: ^@CurrentScope(), buf: []u8): uint {
 		return lily.fmt.format(buf, .(self.key, self.value))
 	}
 }
 
-$_entry_align := fn($K: type, $V: type): uint {
-	// in hbvm contexts, penalisation from align = 1 is minimal
-	// and may save some memory
-	$match target.current {
-		.hbvm_ableos => return 1,
-		_ => $if @align_of(K) > @align_of(V) return @align_of(K) else return @align_of(V),
-	}
-}
+$vacant: u8 = 0xFF
+$tombstone: u8 = 0x80
+$occupied: u8 = 0x7F
 
 HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
-	.entries: Vec(Entry(K, V), A);
+	.metadata: ^u8;
+	.entries: []Entry(K, V);
 	.hasher: H;
+	.allocator: ^A;
 	.size: uint;
 	.tombstones: uint
 
 	Self := @CurrentScope()
 
 	$new := fn(allocator: ^A): Self {
-		entries := Vec(Entry(K, V), A).new_with_capacity(allocator, 32)
-		entries.fill_with(&@as(Entry(K, V), .(idk, idk, .Vacant)))
-		return .(entries, .default(), 0, 0)
+		entries := allocator.alloc(Entry(K, V), 32).?
+		metadata := allocator.alloc(u8, 32).?.ptr
+		mem.fill(mem.as_bytes(metadata[0..entries.len]), mem.as_bytes(&vacant))
+		return .(metadata, entries, .default(), allocator, 0, 0)
 	}
 	$deinit := fn(self: ^Self): void {
-		self.entries.deinit()
+		self.allocator.dealloc(u8, self.metadata[0..self.entries.len])
+		self.allocator.dealloc(Entry(K, V), self.entries)
 		self.hasher.deinit()
 		self.* = idk
 	}
@@ -47,102 +41,87 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		return self.hasher.finish()
 	}
 	_rehash := fn(self: ^Self): void {
-		new_entries := Vec(Entry(K, V), A).new_with_capacity(self.entries.allocator, self.entries.cap * 2)
-		new_entries.fill_with(&@as(Entry(K, V), .(idk, idk, .Vacant)))
-
 		old_entries := self.entries
-		self.entries = new_entries
+		old_metadata := self.metadata
+
+		self.entries = self.allocator.alloc(Entry(K, V), old_entries.len * 2).?
+		self.metadata = self.allocator.alloc(u8, old_entries.len * 2).?.ptr
+		mem.fill(mem.as_bytes(self.metadata[0..self.entries.len]), mem.as_bytes(&vacant))
+
 		self.size = 0
 		self.tombstones = 0
 
 		i := 0
-		loop if i >= old_entries.cap break else {
-			old_entry := old_entries.get_ref_unchecked(i)
-			if old_entry.status == .Occupied {
+		loop if i >= old_entries.len break else {
+			old_meta := (old_metadata + i).*
+			if (old_meta & occupied) == old_meta {
+				old_entry := old_entries[i]
 				_ = @inline(self.insert, old_entry.key, old_entry.value)
 			}
 			i += 1
 		}
-
-		old_entries.deinit()
 	}
-	// todo: compact using number of tombstones
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
-		if self.size * 2 >= self.entries.cap {
-			self._rehash()
-		}
-		mask := self.entries.cap - 1
+		if (self.size + self.tombstones) * 2 >= self.entries.len self._rehash()
 		hash := self.hash_key(key)
-		start_idx := hash & mask
 		step := hash >> 32 | 1
-		idx := start_idx
-		entry: ^Entry(K, V) = idk
-		tombstone: ?^Entry(K, V) = null
-
+		short_hash: u8 = @int_cast(hash >> 57) & occupied
+		mask := self.entries.len - 1
+		idx := hash & mask
 		loop {
-			entry = self.entries.get_ref_unchecked(idx)
-			match entry.status {
-				.Occupied => if entry.key == key {
+			meta := self.metadata + idx
+			entry := self.entries.ptr + idx
+			if meta.* == vacant | meta.* == tombstone {
+				self.tombstones -= meta.* == tombstone
+				entry.* = .(key, value)
+				meta.* = short_hash
+				self.size += 1
+				return &entry.value
+			}
+			if meta.* == short_hash {
+				if entry.key == key {
 					entry.value = value
 					return &entry.value
-				},
-				.Deleted => if tombstone == null {
-					tombstone = entry
-					self.tombstones -= 1
-				},
-				_ => {
-					if tombstone != null entry = tombstone.?
-					break
-				},
+				}
 			}
 			idx = idx + step & mask
-			if start_idx == idx return null
 		}
-		entry.key = key
-		entry.value = value
-		entry.status = .Occupied
-		self.size += 1
-		return &entry.value
 	}
 	get := fn(self: ^Self, key: K): ?^V {
-		mask := self.entries.cap - 1
 		hash := self.hash_key(key)
-		start_idx := hash & mask
 		step := hash >> 32 | 1
-		idx := start_idx
+		short_hash: u8 = @int_cast(hash >> 57) & occupied
+		mask := self.entries.len - 1
+		idx := hash & mask
 		loop {
-			entry := self.entries.get_ref_unchecked(idx)
-			match entry.status {
-				.Occupied => if entry.key == key return &entry.value,
-				.Vacant => return null,
-				_ => {
-				},
+			meta := self.metadata + idx
+			if meta.* == vacant return null
+			entry := self.entries.ptr + idx
+			if meta.* == short_hash {
+				if entry.key == key return &entry.value
 			}
 			idx = idx + step & mask
-			if start_idx == idx return null
 		}
 	}
 	remove := fn(self: ^Self, key: K): ?V {
-		mask := self.entries.cap - 1
 		hash := self.hash_key(key)
-		start_idx := hash & mask
 		step := hash >> 32 | 1
-		idx := start_idx
+		short_hash: u8 = @int_cast(hash >> 57) & occupied
+		mask := self.entries.len - 1
+		idx := hash & mask
 		loop {
-			entry := self.entries.get_ref_unchecked(idx)
-			match entry.status {
-				.Occupied => if entry.key == key {
-					entry.status = .Deleted
+			meta := self.metadata + idx
+			if meta.* == vacant return null
+			entry := self.entries.ptr + idx
+			if meta.* == short_hash {
+				if entry.key == key {
+					meta.* = tombstone
 					self.size -= 1
 					self.tombstones += 1
 					return entry.value
-				},
-				.Vacant => return null,
-				_ => {
-				},
+				}
 			}
 			idx = idx + step & mask
-			if start_idx == idx return null
 		}
 	}
 	$_fmt := fn(self: ^Self, buf: []u8): uint {
@@ -152,14 +131,14 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		mem.copy(buf[len..], ".[")
 		len += 2
 		comma := false
-		loop if i == self.entries.cap break else {
-			entry := self.entries.get_ref_unchecked(i)
-			if entry.status == .Occupied {
+		loop if i == self.entries.len break else {
+			meta := (self.metadata + i).*
+			if (meta & occupied) == meta {
 				if comma {
 					mem.copy(buf[len..], ", ")
 					len += 2
 				}
-				len += entry._fmt(buf[len..])
+				len += (self.entries.ptr + i)._fmt(buf[len..])
 				comma = true
 			}
 			i += 1
