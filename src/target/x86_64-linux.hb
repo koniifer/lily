@@ -114,25 +114,3 @@ $sys_getrandom := 0x13E
 // i guess the registers are getting clobbered / used
 // probably need to do that for other syscalls too...
 $rand_fill := fn(dest: ^u8, len: uint): void return @syscall(sys_getrandom, dest, len, 0)
-
-$sys_clone := 0x38
-$sys_execve := 0x3B
-$sig_chld := 0x11
-$proc_fork := fn(): ?uint {
-	pid: i32 = @syscall(sys_clone, sig_chld)
-	if pid < 0 return null
-	return @as(uint, @int_cast(pid))
-}
-$proc_spawn := fn(executable: []u8): ?uint {
-	@error("todo")
-}
-
-$dt_get := fn($T: type, query: []u8): T @error("todo")
-
-$buf_create_named := fn(name: []u8): uint @error("todo")
-$buf_create := fn(): uint @error("todo")
-$buf_destroy := fn(id: uint): void @error("todo")
-$buf_search := fn(name: []u8): uint @error("todo")
-$buf_await := fn(id: uint): void @error("todo")
-$buf_read := fn(id: uint, mmap: []u8): void @error("todo")
-$buf_write := fn(id: uint, mmap: []u8): void @error("todo")

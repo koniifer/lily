@@ -43,36 +43,3 @@ $exit := fn(code: uint): never die
 $exit_group := fn(code: uint): never die
 
 $rand_fill := fn(dest: ^u8, len: uint): void return @ecall(3, 4, dest, len)
-
-// todo: failure state
-$proc_fork := fn(): ?uint return @as(uint, @ecall(3, 7))
-$proc_spawn := fn(executable: []u8): ?uint {
-	return @ecall(3, 6, executable.ptr, executable.len)
-}
-
-$dt_get := fn($T: type, query: []u8): T {
-	return @ecall(3, 5, query.ptr, query.len)
-}
-
-BufferEcall := struct align(1){.operation: u8; .str_ptr: ^u8; .str_len: uint}
-$buf_create_named := fn(name: []u8): uint {
-	return @ecall(3, 0, BufferEcall.(0, name.ptr, name.len), @size_of(BufferEcall))
-}
-$buf_create := fn(): uint {
-	return @ecall(1, 0)
-}
-$buf_destroy := fn(id: uint): void {
-	return @ecall(2, id)
-}
-$buf_search := fn(name: []u8): uint {
-	return @ecall(3, 0, BufferEcall.(3, name.ptr, name.len), @size_of(BufferEcall))
-}
-$buf_await := fn(id: uint): void {
-	return @ecall(7, id)
-}
-$buf_read := fn(id: uint, mmap: []u8): void {
-	return @ecall(4, id, mmap.ptr, mmap.len)
-}
-$buf_write := fn(id: uint, mmap: []u8): void {
-	return @ecall(3, id, mmap.ptr, mmap.len)
-}
