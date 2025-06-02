@@ -36,13 +36,6 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		entries.fill_with(&@as(Entry(K, V), .(idk, idk, .Vacant)))
 		return .(entries, .default(), 0, 0)
 	}
-	$new_with_args := fn(allocator: ^A, hasher: ?H, capacity: ?uint): Self {
-		if hasher == null hasher = H.default()
-		if capacity == null capacity = 16 else capacity = math.int_next_power_of_two(capacity.?)
-		entries := Vec(Entry(K, V), A).new_with_capacity(allocator, capacity.?)
-		entries.fill_with(&@as(Entry(K, V), .(idk, idk, .Vacant)))
-		return .(entries, hasher.?, 0, 0)
-	}
 	$deinit := fn(self: ^Self): void {
 		self.entries.deinit()
 		self.hasher.deinit()

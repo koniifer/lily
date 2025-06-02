@@ -50,11 +50,18 @@ main := fn(): uint {
 	map := collections.HashMap(uint, uint, alloc.Arena, lily.hash.RapidHasher).new(&arena)
 	defer map.deinit()
 
-	_ = map.insert(1, 1)
-	v := map.remove(1)
-	if v == null {
-		lily.log.print(map.size)
-		lily.panic("uhhh")
+	i := 0
+	loop if i == 5000000 break else {
+		v := map.insert(i, 0)
+		if v == null lily.panic("ooops")
+		i += 1
+	}
+
+	i = 0
+	loop if i == 5000000 break else {
+		v := map.remove(i)
+		if v == null lily.panic("uhhh")
+		i += 1
 	}
 
 	return 0

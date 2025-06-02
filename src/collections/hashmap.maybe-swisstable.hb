@@ -1,12 +1,8 @@
-lily.{collections: .{Vec}, iter, TypeInfo, log, mem, target, math} := @use("../lib.hb")
+lily.{iter, TypeInfo, log, mem, target, math} := @use("../lib.hb")
 
 Entry := fn($K: type, $V: type): type return struct align(1) {
 	.key: K;
 	.value: V;
-}
-
-MetaData := struct {
-	.status_hash: u8;
 }
 
 $vacant: u8 = 0xFF
@@ -14,7 +10,7 @@ $tombstone: u8 = 0x80
 $occupied: u8 = 0x7F
 
 HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
-	.metadata: ^MetaData;
+	.metadata: ^u8;
 	.entries: []Entry(K, V);
 	.hasher: H;
 	.allocator: ^A;
@@ -24,12 +20,12 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 
 	$new := fn(allocator: ^A): Self {
 		entries := allocator.alloc(Entry(K, V), 32).?
-		metadata := allocator.alloc(MetaData, 32).?.ptr
-		mem.fill(mem.as_bytes(metadata[0..entries.len]), mem.as_bytes(&MetaData.(vacant)))
+		metadata := allocator.alloc(u8, 32).?.ptr
+		mem.fill(mem.as_bytes(metadata[0..entries.len]), mem.as_bytes(&vacant))
 		return .(metadata, entries, .default(), allocator, 0)
 	}
 	$deinit := fn(self: ^Self): void {
-		self.allocator.dealloc(MetaData, self.metadata[0..self.entries.len])
+		self.allocator.dealloc(u8, self.metadata[0..self.entries.len])
 		self.allocator.dealloc(Entry(K, V), self.entries)
 		self.hasher.deinit()
 		self.* = idk
@@ -44,12 +40,12 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		old_metadata := self.metadata
 
 		self.entries = self.allocator.alloc(Entry(K, V), old_entries.len * 2).?
-		self.metadata = self.allocator.alloc(MetaData, old_entries.len * 2).?.ptr
-		mem.fill(mem.as_bytes(self.metadata[0..self.entries.len]), mem.as_bytes(&MetaData.(vacant)))
+		self.metadata = self.allocator.alloc(u8, old_entries.len * 2).?.ptr
+		mem.fill(mem.as_bytes(self.metadata[0..self.entries.len]), mem.as_bytes(&vacant))
 
 		i := 0
 		loop if i >= old_entries.len break else {
-			old_meta := (old_metadata + i).status_hash
+			old_meta := (old_metadata + i).*
 			if (old_meta & occupied) == old_meta {
 				old_entry := old_entries[i]
 				_ = @inline(self.insert, old_entry.key, old_entry.value)
@@ -67,13 +63,13 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		loop {
 			meta := self.metadata + idx
 			entry := self.entries.ptr + idx
-			if meta.status_hash == vacant | meta.status_hash == tombstone {
+			if meta.* == vacant | meta.* == tombstone {
 				entry.* = .(key, value)
-				meta.status_hash = short_hash
+				meta.* = short_hash
 				self.size += 1
 				return &entry.value
-			} 
-			if meta.status_hash == short_hash {
+			}
+			if meta.* == short_hash {
 				if entry.key == key {
 					entry.value = value
 					return &entry.value
@@ -90,9 +86,9 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		idx := hash & mask
 		loop {
 			meta := self.metadata + idx
-			if meta.status_hash == vacant return null
+			if meta.* == vacant return null
 			entry := self.entries.ptr + idx
-			if meta.status_hash == short_hash {
+			if meta.* == short_hash {
 				if entry.key == key return &entry.value
 			}
 			idx = idx + step & mask
@@ -106,11 +102,11 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		idx := hash & mask
 		loop {
 			meta := self.metadata + idx
-			if meta.status_hash == vacant return null
+			if meta.* == vacant return null
 			entry := self.entries.ptr + idx
-			if meta.status_hash == short_hash {
+			if meta.* == short_hash {
 				if entry.key == key {
-					meta.status_hash = tombstone
+					meta.* = tombstone
 					self.size -= 1
 					return entry.value
 				}
