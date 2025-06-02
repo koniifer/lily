@@ -57,12 +57,13 @@ main := fn(): uint {
 		i += 1
 	}
 
-	// i = 0
-	// loop if i == 5000000 break else {
-	// 	v := map.remove(i)
-	// 	if v == null lily.panic("uhhh")
-	// 	i += 1
-	// }
+	loop if map.size == 0 break else {
+		i -= 1
+		v := map.remove(i)
+		if v == null lily.panic("uhhh")
+	}
+
+	if i != 0 lily.panic("um um")
 
 	return 0
 }

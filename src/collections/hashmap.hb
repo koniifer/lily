@@ -11,7 +11,6 @@ Entry := fn($K: type, $V: type): type return struct align(1) {
 
 $vacant: u8 = 0xFF
 $tombstone: u8 = 0x80
-$occupied: u8 = 0x7F
 
 HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	.metadata: ^u8;
@@ -25,9 +24,9 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 
 	$new := fn(allocator: ^A): Self {
 		entries := allocator.alloc(Entry(K, V), 32).?
-		metadata: ^u8 = @bit_cast(allocator.alloc(u64, 32 >> 3).?.ptr)
-		mem.fill(mem.as_bytes(metadata[0..entries.len]), mem.as_bytes(&vacant))
-		return .(metadata, entries, .default(), allocator, 0, 0)
+		metadata := allocator.alloc(u8, 32).?.ptr
+		mem.set(metadata[0..entries.len], vacant)
+		return .(metadata, entries, .new(100), allocator, 0, 0)
 	}
 	$deinit := fn(self: ^Self): void {
 		self.allocator.dealloc(u8, self.metadata[0..self.entries.len])
@@ -45,16 +44,15 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		old_metadata := self.metadata
 
 		self.entries = self.allocator.alloc(Entry(K, V), old_entries.len * 2).?
-		self.metadata = @bit_cast(self.allocator.alloc(u64, old_entries.len >> 2).?.ptr)
-		mem.fill(mem.as_bytes(self.metadata[0..self.entries.len]), mem.as_bytes(&vacant))
+		self.metadata = self.allocator.alloc(u8, old_entries.len * 2).?.ptr
+		mem.set(self.metadata[0..self.entries.len], vacant)
 
 		self.size = 0
 		self.tombstones = 0
 
 		i := 0
 		loop if i >= old_entries.len break else {
-			old_meta := (old_metadata + i).*
-			if (old_meta & occupied) == old_meta {
+			if (old_metadata + i).* < tombstone {
 				old_entry := old_entries[i]
 				_ = @inline(self.insert, old_entry.key, old_entry.value)
 			}
@@ -62,80 +60,44 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		}
 	}
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
-		if (self.size + self.tombstones) * 2 >= self.entries.len self._rehash()
+		if self.size + self.tombstones >= self.entries.len - (self.entries.len >> 3) self._rehash()
 		hash := self.hash_key(key)
 		step := hash >> 32 | 1
-		short_hash: u8 = @int_cast(hash >> 57) & occupied
-		long_short_hash: u64 = 0x0101010101010101 * short_hash
+		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
 		idx := hash & mask
+		candidate: ?uint = null
 		loop {
-			chunk: ^u64 = @bit_cast(self.metadata + idx)
-			if (chunk.* & 0x8080808080808080) != 0x8080808080808080 {
-				chunk_idx := idx & 7
-				offset := 0
-				loop if offset >= 8 break else {
-					cur_idx := (idx & ~7) + ((chunk_idx + offset) & 7)
-					meta := self.metadata + cur_idx
-					entry := self.entries.ptr + cur_idx
-
-					if meta.* == vacant | meta.* == tombstone {
-						self.tombstones -= meta.* == tombstone
-						entry.* = .(key, value)
-						meta.* = short_hash
-						self.size += 1
-						return &entry.value
-					}
-					if meta.* == short_hash {
-						if entry.key == key {
-							entry.value = value
-							return &entry.value
-						}
-					}
-					offset += 1
+			meta := self.metadata + idx
+			entry := self.entries.ptr + idx
+			if meta.* == vacant {
+				break
+			} else if meta.* == tombstone {
+				if candidate == null candidate = idx
+			} else if meta.* == short_hash {
+				if entry.key == key {
+					entry.value = value
+					return &entry.value
 				}
 			}
-			xor := chunk.* ^ long_short_hash
-			match_mask := (xor - 0x0101010101010101) & (xor & 0x8080808080808080)
-			if match_mask != 0 {
-				chunk_idx := idx & 7
-				offset := 0
-				loop if offset >= 8 break else {
-					if ((match_mask >> (@int_cast(offset) << 3)) & 0x80) != 0 {
-						cur_idx := (idx & ~7) + ((chunk_idx + offset) & 7)
-						entry := self.entries.ptr + cur_idx
-						if entry.key == key {
-							entry.value = value
-							return &entry.value
-						}
-					}
-					offset += 1
-					}
-				}
-				idx = (idx + step) & mask
-			}
-		// 	meta := self.metadata + idx
-		// 	entry := self.entries.ptr + idx
-		// 	if meta.* == vacant | meta.* == tombstone {
-		// 		self.tombstones -= meta.* == tombstone
-		// 		entry.* = .(key, value)
-		// 		meta.* = short_hash
-		// 		self.size += 1
-		// 		return &entry.value
-		// 	}
-		// 	if meta.* == short_hash {
-		// 		if entry.key == key {
-		// 			entry.value = value
-		// 			return &entry.value
-		// 		}
-		// 	}
-		// 	idx = idx + step & mask
-		// }
+			idx += step
+			idx &= mask
+		}
+		if candidate != null {
+			self.tombstones -= 1
+			idx = candidate.?
+		}
+		meta := self.metadata + idx
+		entry := self.entries.ptr + idx
+		entry.* = .(key, value)
+		meta.* = short_hash
+		self.size += 1
+		return &entry.value
 	}
 	get := fn(self: ^Self, key: K): ?^V {
 		hash := self.hash_key(key)
 		step := hash >> 32 | 1
-		short_hash: u8 = @int_cast(hash >> 57) & occupied
+		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
 		idx := hash & mask
 		loop {
@@ -145,13 +107,14 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 			if meta.* == short_hash {
 				if entry.key == key return &entry.value
 			}
-			idx = idx + step & mask
+			idx += step
+			idx &= mask
 		}
 	}
 	remove := fn(self: ^Self, key: K): ?V {
 		hash := self.hash_key(key)
 		step := hash >> 32 | 1
-		short_hash: u8 = @int_cast(hash >> 57) & occupied
+		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
 		idx := hash & mask
 		loop {
@@ -166,27 +129,34 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 					return entry.value
 				}
 			}
-			idx = idx + step & mask
+			idx += step
+			idx &= mask
 		}
 	}
 	$_fmt := fn(self: ^Self, buf: []u8): uint {
-		i := 0
 		mem.copy(buf, @name_of(Entry(K, V)))
 		len := @name_of(Entry(K, V)).len
 		mem.copy(buf[len..], ".[")
 		len += 2
 		comma := false
-		loop if i == self.entries.len break else {
-			meta := (self.metadata + i).*
-			if (meta & occupied) == meta {
+		meta := self.metadata
+		entry := self.entries.ptr
+		i := 0
+		loop if i >= self.size break else {
+			if meta.* < tombstone {
+				// yes, i can check if i > 0. yes i know.
+				// left this here because there is a bug on x86_64-linux
+				// causing an extra comma to print at the start
 				if comma {
 					mem.copy(buf[len..], ", ")
 					len += 2
 				}
-				len += (self.entries.ptr + i)._fmt(buf[len..])
+				len += entry._fmt(buf[len..])
 				comma = true
+				i += 1
 			}
-			i += 1
+			meta += 1
+			entry += 1
 		}
 		buf[len] = ']'
 		return len + 1
