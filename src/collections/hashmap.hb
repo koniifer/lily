@@ -29,7 +29,7 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		// yes i know this should be randomly seeded with .default()
 		// however there is an incongruence between the results of x86 and hbvm
 		// so im leaving this as is.
-		return .(metadata, entries, .new(100), allocator, 0, 0)
+		return .(metadata, entries, .new((1 << 32) - 1), allocator, 0, 0)
 	}
 	$deinit := fn(self: ^Self): void {
 		self.allocator.dealloc(u8, self.metadata[0..self.entries.len])
@@ -68,7 +68,6 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
 		if self.size + self.tombstones >= self.entries.len - (self.entries.len >> 3) self._rehash()
 		hash := self.hash_key(key)
-		step := hash >> 32 | 1
 		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
 		idx := hash & mask
@@ -86,7 +85,7 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 					return &entry.value
 				}
 			}
-			idx += step
+			idx += 1
 			idx &= mask
 		}
 		if candidate != null {
@@ -102,7 +101,6 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 	}
 	get := fn(self: ^Self, key: K): ?^V {
 		hash := self.hash_key(key)
-		step := hash >> 32 | 1
 		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
 		idx := hash & mask
@@ -113,13 +111,12 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 			if meta.* == short_hash {
 				if entry.key == key return &entry.value
 			}
-			idx += step
+			idx += 1
 			idx &= mask
 		}
 	}
 	remove := fn(self: ^Self, key: K): ?V {
 		hash := self.hash_key(key)
-		step := hash >> 32 | 1
 		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
 		idx := hash & mask
@@ -135,7 +132,7 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 					return entry.value
 				}
 			}
-			idx += step
+			idx += 1
 			idx &= mask
 		}
 	}
