@@ -25,7 +25,7 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 
 	$new := fn(allocator: ^A): Self {
 		entries := allocator.alloc(Entry(K, V), 32).?
-		metadata := allocator.alloc(u8, 32).?.ptr
+		metadata: ^u8 = @bit_cast(allocator.alloc(u64, 32 >> 3).?.ptr)
 		mem.fill(mem.as_bytes(metadata[0..entries.len]), mem.as_bytes(&vacant))
 		return .(metadata, entries, .default(), allocator, 0, 0)
 	}
@@ -45,7 +45,7 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		old_metadata := self.metadata
 
 		self.entries = self.allocator.alloc(Entry(K, V), old_entries.len * 2).?
-		self.metadata = self.allocator.alloc(u8, old_entries.len * 2).?.ptr
+		self.metadata = @bit_cast(self.allocator.alloc(u64, old_entries.len >> 2).?.ptr)
 		mem.fill(mem.as_bytes(self.metadata[0..self.entries.len]), mem.as_bytes(&vacant))
 
 		self.size = 0
@@ -66,26 +66,71 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		hash := self.hash_key(key)
 		step := hash >> 32 | 1
 		short_hash: u8 = @int_cast(hash >> 57) & occupied
+		long_short_hash: u64 = 0x0101010101010101 * short_hash
 		mask := self.entries.len - 1
 		idx := hash & mask
 		loop {
-			meta := self.metadata + idx
-			entry := self.entries.ptr + idx
-			if meta.* == vacant | meta.* == tombstone {
-				self.tombstones -= meta.* == tombstone
-				entry.* = .(key, value)
-				meta.* = short_hash
-				self.size += 1
-				return &entry.value
-			}
-			if meta.* == short_hash {
-				if entry.key == key {
-					entry.value = value
-					return &entry.value
+			chunk: ^u64 = @bit_cast(self.metadata + idx)
+			if (chunk.* & 0x8080808080808080) != 0x8080808080808080 {
+				chunk_idx := idx & 7
+				offset := 0
+				loop if offset >= 8 break else {
+					cur_idx := (idx & ~7) + ((chunk_idx + offset) & 7)
+					meta := self.metadata + cur_idx
+					entry := self.entries.ptr + cur_idx
+
+					if meta.* == vacant | meta.* == tombstone {
+						self.tombstones -= meta.* == tombstone
+						entry.* = .(key, value)
+						meta.* = short_hash
+						self.size += 1
+						return &entry.value
+					}
+					if meta.* == short_hash {
+						if entry.key == key {
+							entry.value = value
+							return &entry.value
+						}
+					}
+					offset += 1
 				}
 			}
-			idx = idx + step & mask
-		}
+			xor := chunk.* ^ long_short_hash
+			match_mask := (xor - 0x0101010101010101) & (xor & 0x8080808080808080)
+			if match_mask != 0 {
+				chunk_idx := idx & 7
+				offset := 0
+				loop if offset >= 8 break else {
+					if ((match_mask >> (@int_cast(offset) << 3)) & 0x80) != 0 {
+						cur_idx := (idx & ~7) + ((chunk_idx + offset) & 7)
+						entry := self.entries.ptr + cur_idx
+						if entry.key == key {
+							entry.value = value
+							return &entry.value
+						}
+					}
+					offset += 1
+					}
+				}
+				idx = (idx + step) & mask
+			}
+		// 	meta := self.metadata + idx
+		// 	entry := self.entries.ptr + idx
+		// 	if meta.* == vacant | meta.* == tombstone {
+		// 		self.tombstones -= meta.* == tombstone
+		// 		entry.* = .(key, value)
+		// 		meta.* = short_hash
+		// 		self.size += 1
+		// 		return &entry.value
+		// 	}
+		// 	if meta.* == short_hash {
+		// 		if entry.key == key {
+		// 			entry.value = value
+		// 			return &entry.value
+		// 		}
+		// 	}
+		// 	idx = idx + step & mask
+		// }
 	}
 	get := fn(self: ^Self, key: K): ?^V {
 		hash := self.hash_key(key)
