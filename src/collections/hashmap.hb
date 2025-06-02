@@ -26,6 +26,9 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		entries := allocator.alloc(Entry(K, V), 32).?
 		metadata := allocator.alloc(u8, 32).?.ptr
 		mem.set(metadata[0..entries.len], vacant)
+		// yes i know this should be randomly seeded with .default()
+		// however there is an incongruence between the results of x86 and hbvm
+		// so im leaving this as is.
 		return .(metadata, entries, .new(100), allocator, 0, 0)
 	}
 	$deinit := fn(self: ^Self): void {
@@ -58,6 +61,9 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 			}
 			i += 1
 		}
+
+		self.allocator.dealloc(Entry(K, V), old_entries)
+		self.allocator.dealloc(u8, old_metadata[0..old_entries.len])
 	}
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
 		if self.size + self.tombstones >= self.entries.len - (self.entries.len >> 3) self._rehash()
