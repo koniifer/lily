@@ -47,13 +47,14 @@ lily.{fmt, log, mem, alloc, target, collections} := @use("lily")
 main := fn(): uint {
 	arena := alloc.Arena.new()
 	defer arena.deinit()
-	map := collections.HashMap(uint, uint, alloc.Arena, lily.hash.FoldHasher).new(&arena)
+	map := collections.HashMap(uint, uint, alloc.Arena, lily.hash.RapidHasher).new(&arena)
 	defer map.deinit()
 
-	i := 0
-	loop if i == 20 break else {
-		_ = map.insert(i, i)
-		i += 1
+	_ = map.insert(1, 1)
+	v := map.remove(1)
+	if v == null {
+		lily.log.print(map.size)
+		lily.panic("uhhh")
 	}
 
 	return 0
