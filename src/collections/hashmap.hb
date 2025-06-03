@@ -1,6 +1,6 @@
 lily.{iter, TypeInfo, log, mem, target, math} := @use("../lib.hb")
 
-Entry := fn($K: type, $V: type): type return struct align(1) {
+Entry := fn($K: type, $V: type): type return struct {
 	.key: K;
 	.value: V
 
@@ -32,6 +32,26 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		return .(metadata, entries, .new((1 << 32) - 1), allocator, 0, 0)
 	}
 	$deinit := fn(self: ^Self): void {
+		// ! this check is disabled because it doesnt work :yay:
+		// $if @compiles(K.deinit) | @compiles(V.deinit) {
+		i := 0
+		meta := self.metadata
+		entry := self.entries.ptr
+		loop if i >= self.size break else {
+			if meta.* < tombstone {
+				$if @compiles(K.deinit) {
+					_ = entry.key.deinit()
+				}
+				$if @compiles(V.deinit) {
+					_ = entry.value.deinit()
+				}
+				i += 1
+			}
+			meta += 1
+			entry += 1
+		}
+		// }
+
 		self.allocator.dealloc(u8, self.metadata[0..self.entries.len])
 		self.allocator.dealloc(Entry(K, V), self.entries)
 		self.hasher.deinit()
@@ -46,8 +66,11 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		old_entries := self.entries
 		old_metadata := self.metadata
 
-		self.entries = self.allocator.alloc(Entry(K, V), old_entries.len * 2).?
-		self.metadata = self.allocator.alloc(u8, old_entries.len * 2).?.ptr
+		prev_len := old_entries.len
+		new_len := prev_len * 2
+
+		self.entries = self.allocator.alloc(Entry(K, V), new_len).?
+		self.metadata = self.allocator.alloc(u8, new_len).?.ptr
 		mem.set(self.metadata[0..self.entries.len], vacant)
 
 		self.size = 0
@@ -63,10 +86,14 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		}
 
 		self.allocator.dealloc(Entry(K, V), old_entries)
-		self.allocator.dealloc(u8, old_metadata[0..old_entries.len])
+		self.allocator.dealloc(u8, old_metadata[0..prev_len])
 	}
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
-		if self.size + self.tombstones >= self.entries.len - (self.entries.len >> 3) self._rehash()
+		if $target.current == .hbvm_ableos {
+			if self.size + self.tombstones >= 99 * self.entries.len >> 7 self._rehash()
+		} else {
+			if self.size + self.tombstones >= 5 * self.entries.len >> 3 self._rehash()
+		}
 		hash := self.hash_key(key)
 		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
@@ -74,30 +101,31 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		candidate: ?uint = null
 		loop {
 			meta := self.metadata + idx
-			entry := self.entries.ptr + idx
-			if meta.* == vacant {
-				break
-			} else if meta.* == tombstone {
-				if candidate == null candidate = idx
-			} else if meta.* == short_hash {
+			if meta.* == short_hash {
+				entry := self.entries.ptr + idx
 				if entry.key == key {
 					entry.value = value
 					return &entry.value
+				}
+			} else if meta.* >= tombstone {
+				if meta.* == vacant {
+					if candidate != null {
+						self.tombstones -= 1
+						idx = candidate.?
+					}
+					meta = self.metadata + idx
+					entry := self.entries.ptr + idx
+					entry.* = .(key, value)
+					meta.* = short_hash
+					self.size += 1
+					return &entry.value
+				} else {
+					if candidate == null candidate = idx
 				}
 			}
 			idx += 1
 			idx &= mask
 		}
-		if candidate != null {
-			self.tombstones -= 1
-			idx = candidate.?
-		}
-		meta := self.metadata + idx
-		entry := self.entries.ptr + idx
-		entry.* = .(key, value)
-		meta.* = short_hash
-		self.size += 1
-		return &entry.value
 	}
 	get := fn(self: ^Self, key: K): ?^V {
 		hash := self.hash_key(key)
@@ -106,11 +134,10 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		idx := hash & mask
 		loop {
 			meta := self.metadata + idx
-			if meta.* == vacant return null
-			entry := self.entries.ptr + idx
 			if meta.* == short_hash {
+				entry := self.entries.ptr + idx
 				if entry.key == key return &entry.value
-			}
+			} else if meta.* == vacant return null
 			idx += 1
 			idx &= mask
 		}
@@ -122,16 +149,15 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		idx := hash & mask
 		loop {
 			meta := self.metadata + idx
-			if meta.* == vacant return null
-			entry := self.entries.ptr + idx
 			if meta.* == short_hash {
+				entry := self.entries.ptr + idx
 				if entry.key == key {
 					meta.* = tombstone
 					self.size -= 1
 					self.tombstones += 1
 					return entry.value
 				}
-			}
+			} else if meta.* == vacant return null
 			idx += 1
 			idx &= mask
 		}

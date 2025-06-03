@@ -16,7 +16,7 @@ config := struct {
 	$fmt_buffer_size := 256
 
 	$_min_loglevel := fn($level: type): log.LogLevel {
-		$if config.optimise < .ReleaseSafe & level.inner < .Debug return .Debug
+		$if config.optimise <= .Debug & level.inner < .Debug return .Debug
 		return level.inner
 	}
 	$min_loglevel := _min_loglevel(struct {

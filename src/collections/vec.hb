@@ -27,6 +27,13 @@ Vec := fn(T: type, A: type): type return struct {
 		mem.fill(mem.as_bytes(self.slice), mem.as_bytes(elem))
 	}
 	$deinit := fn(self: ^Self): void {
+		$if @compiles(T.deinit) {
+			i := 0
+			loop if i == self.slice.len break else {
+				_ = self.slice[i].deinit()
+				i += 1
+			}
+		}
 		self.allocator.dealloc(T, self.slice[0..self.cap])
 		self.* = idk
 	}

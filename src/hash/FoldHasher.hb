@@ -110,7 +110,7 @@ write := fn(self: ^FoldHasher, _w: @Any()): void {
 	}
 }
 
-$finish := fn(self: ^FoldHasher): uint return self.accumulator
+$finish := fn(self: ^FoldHasher): uint return folded_multiply(self.accumulator, 0x243f6a8885a308d3)
 $reset := fn(self: ^FoldHasher): void self.accumulator = self.original_seed
 
 $folded_multiply := fn(x: uint, y: uint): uint {
