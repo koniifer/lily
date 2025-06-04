@@ -51,11 +51,13 @@ main := fn(): uint {
 	defer map.deinit()
 
 	i := 0
-	loop if i == 5000000 break else {
-		v := map.insert(i, 0)
+	loop if i == 10 break else {
+		v := map.insert(i, i)
 		if v == null lily.panic("ooops")
 		i += 1
 	}
+
+	lily.log.print(map)
 
 	loop if map.size == 0 break else {
 		i -= 1

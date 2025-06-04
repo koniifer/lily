@@ -89,11 +89,11 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		self.allocator.dealloc(u8, old_metadata[0..prev_len])
 	}
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
-		if $target.current == .hbvm_ableos {
-			if self.size + self.tombstones >= 99 * self.entries.len >> 7 self._rehash()
-		} else {
-			if self.size + self.tombstones >= 5 * self.entries.len >> 3 self._rehash()
-		}
+		// if $target.current == .hbvm_ableos {
+		// 	if self.size + self.tombstones >= 99 * self.entries.len >> 7 self._rehash()
+		// } else {
+		if self.size + self.tombstones >= 5 * self.entries.len >> 3 self._rehash()
+		// }
 		hash := self.hash_key(key)
 		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
