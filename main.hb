@@ -58,7 +58,7 @@ main := fn(): uint {
 
 	i := 0
 	loop if i == 10 break else {
-		_ = map.insert(i, i)
+		_ = map.insert(i, 0)
 		i += 1
 	}
 

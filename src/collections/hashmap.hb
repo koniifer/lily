@@ -26,32 +26,9 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		entries := allocator.alloc(Entry(K, V), 32).?
 		metadata := allocator.alloc(u8, 32).?.ptr
 		mem.set(metadata[0..entries.len], vacant)
-		// yes i know this should be randomly seeded with .default()
-		// however there is an incongruence between the results of x86 and hbvm
-		// so im leaving this as is.
-		return .(metadata, entries, .new((1 << 32) - 1), allocator, 0, 0)
+		return .(metadata, entries, .default(), allocator, 0, 0)
 	}
 	$deinit := fn(self: ^Self): void {
-		// ! this check is disabled because it doesnt work :yay:
-		// $if @compiles(K.deinit) | @compiles(V.deinit) {
-		i := 0
-		meta := self.metadata
-		entry := self.entries.ptr
-		loop if i >= self.size break else {
-			if meta.* < tombstone {
-				$if @compiles(K.deinit) {
-					_ = entry.key.deinit()
-				}
-				$if @compiles(V.deinit) {
-					_ = entry.value.deinit()
-				}
-				i += 1
-			}
-			meta += 1
-			entry += 1
-		}
-		// }
-
 		self.allocator.dealloc(u8, self.metadata[0..self.entries.len])
 		self.allocator.dealloc(Entry(K, V), self.entries)
 		self.hasher.deinit()
@@ -89,11 +66,11 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		self.allocator.dealloc(u8, old_metadata[0..prev_len])
 	}
 	insert := fn(self: ^Self, key: K, value: V): ?^V {
-		// if $target.current == .hbvm_ableos {
-		// 	if self.size + self.tombstones >= 99 * self.entries.len >> 7 self._rehash()
-		// } else {
-		if self.size + self.tombstones >= 5 * self.entries.len >> 3 self._rehash()
-		// }
+		if $target.current == .hbvm_ableos {
+			if self.size + self.tombstones >= 99 * self.entries.len >> 7 self._rehash()
+		} else {
+			if self.size + self.tombstones >= 5 * self.entries.len >> 3 self._rehash()
+		}
 		hash := self.hash_key(key)
 		short_hash: u8 = @int_cast(hash >> 57)
 		mask := self.entries.len - 1
@@ -167,21 +144,16 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		len := @name_of(Entry(K, V)).len
 		mem.copy(buf[len..], ".[")
 		len += 2
-		comma := false
 		meta := self.metadata
 		entry := self.entries.ptr
 		i := 0
 		loop if i >= self.size break else {
 			if meta.* < tombstone {
-				// yes, i can check if i > 0. yes i know.
-				// left this here because there is a bug on x86_64-linux
-				// causing an extra comma to print at the start
-				if comma {
+				if i > 0 {
 					mem.copy(buf[len..], ", ")
 					len += 2
 				}
 				len += entry._fmt(buf[len..])
-				comma = true
 				i += 1
 			}
 			meta += 1
