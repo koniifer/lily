@@ -26,7 +26,9 @@ HashMap := fn($K: type, $V: type, $A: type, $H: type): type return struct {
 		entries := allocator.alloc(Entry(K, V), 32).?
 		metadata := allocator.alloc(u8, 32).?.ptr
 		mem.set(metadata[0..entries.len], vacant)
-		return .(metadata, entries, .default(), allocator, 0, 0)
+		// return .(metadata, entries, .default(), allocator, 0, 0)
+		// temporarily fix seed for testing purposes
+		return .(metadata, entries, .new((1 << 32) - 1), allocator, 0, 0)
 	}
 	$deinit := fn(self: ^Self): void {
 		self.allocator.dealloc(u8, self.metadata[0..self.entries.len])

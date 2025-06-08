@@ -70,7 +70,7 @@ fmt_float := fn(buf: []u8, v: @Any(), precision: uint, radix: int): uint {
 	fractional_part := v - @int_to_float(integer_part)
 
 	i := prefix_len
-	loop if integer_part <= 0 & i > prefix_len break else {
+	loop if integer_part <= 0 && i > prefix_len break else {
 		remainder: u8 = @int_cast(integer_part % radix)
 		integer_part /= radix
 		if remainder > 9 {
@@ -87,7 +87,7 @@ fmt_float := fn(buf: []u8, v: @Any(), precision: uint, radix: int): uint {
 		i += 1
 
 		p := precision
-		loop if p <= 0 | fractional_part < 0.000001 break else {
+		loop if p <= 0 || fractional_part < 0.000001 break else {
 			fractional_part *= @int_to_float(radix)
 			digit := @float_to_int(fractional_part)
 			if digit > 9 {
@@ -246,7 +246,7 @@ format_with_str := fn(str: []u8, buf: []u8, v: @Any()): uint {
 				if str[i + 1] == '}' {
 					j += format(buf[j..], v2)
 					i += 2
-				} else if str[i + 1] == 's' & str[i + 2] == '}' {
+				} else if str[i + 1] == 's' && str[i + 2] == '}' {
 					$if @TypeOf(v2) == []u8 {
 						mem.copy(buf[j..], v2)
 						j += v2.len

@@ -9,12 +9,13 @@ readonly LILY_BUILD_DIR="${LILY_BUILD_DIR:-$LILY_SCRIPT_DIR/out}"
 
 # readonly HBLANG_GIT="https://git.ablecorp.eu/mlokis/hblang.git"
 readonly HBLANG_GIT="https://github.com/jakubDoka/hblang.git"
-readonly HBLANG_COMMIT="11be0bc5014577fb4686037cf51eecff7eba01dc"
+readonly HBLANG_COMMIT="b89c84f488dca40fa2cb849c6f808d2979ac7c7b"
 readonly HBC_TARGET="${HBC_TARGET:-hbvm-ableos}"
 readonly HBC_OPT_LEVEL="${HBC_OPT_LEVEL:-Debug}"
 readonly HBC_FLAGS="--path-projection lily $LILY_SRC_DIR/lib.hb ${HBC_FLAGS:-} --target $HBC_TARGET"
 readonly HBC_BINARY="hbc"
 readonly HBC_TESTS="${HBC_TESTS:-0}"
+readonly LINKER_FLAGS="${LINKER_FLAGS:-}"
 
 die() { error "$2" 1>&2 && exit "$1"; }
 error() { printf "\033[31mERROR\033[0m: %b\n" "$1"; }
@@ -135,9 +136,9 @@ main() {
 
 	# shellcheck disable=SC2086
 	if $HBC_BINARY $HBC_FLAGS "$inp" >"$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name.$ext"; then
-		$HBC_BINARY $HBC_FLAGS "$inp" --fmt >/dev/null 2>&1
+		# $HBC_BINARY $HBC_FLAGS "$inp" --fmt >/dev/null 2>&1
 		if [ $needs_linking = 1 ]; then
-			zig cc "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name.$ext" -o "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name" >/dev/null 2>&1 || die "linking failed"
+			zig cc "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name.$ext" -o "$LILY_BUILD_DIR/$HBC_TARGET/$pretty_name" $LINKER_FLAGS >/dev/null 2>&1 || die 1 "linking failed"
 		fi
 	else
 		exit $?

@@ -72,8 +72,8 @@ Iterator := fn(T: type): type return struct {
 		loop {
 			defer i += 1
 			x := self.next()
-			if i == @len_of(A) & x.finished return cont
-			if i == @len_of(A) | x.finished return null
+			if i == @len_of(A) && x.finished return cont
+			if i == @len_of(A) || x.finished return null
 			cont[i] = x.val
 		}
 	}

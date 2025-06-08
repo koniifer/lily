@@ -90,12 +90,12 @@ $to_owned := fn($T: type, slice: []u8): T {
 }
 
 $overlaps := fn(lhs: []u8, rhs: []u8): bool {
-	return lhs.ptr < rhs.ptr + rhs.len & rhs.ptr < lhs.ptr + lhs.len
+	return lhs.ptr < rhs.ptr + rhs.len && rhs.ptr < lhs.ptr + lhs.len
 }
 
 $copy := fn(dest: []u8, src: []u8): void {
 	$if config.optimise < .ReleaseFast {
-		if src.len > dest.len | overlaps(dest, src) {
+		if src.len > dest.len || overlaps(dest, src) {
 			lily.panic("mem.copy: regions overlap or src bigger than dest")
 		}
 	}
@@ -117,7 +117,7 @@ $set := fn(dest: []u8, src: u8): void {
 
 $fill := fn(dest: []u8, src: []u8): void {
 	$if config.optimise < .ReleaseFast {
-		if src.len > dest.len | overlaps(dest, src) | dest.len % src.len != 0 {
+		if src.len > dest.len || overlaps(dest, src) || dest.len % src.len != 0 {
 			lily.panic("mem.copy: regions overlap or src bigger than dest, or dest won't perfectly tile src (end gap)")
 		}
 	}
@@ -128,7 +128,7 @@ equals := fn(lhs: []u8, rhs: []u8): bool {
 	if lhs.len != rhs.len return false
 	if lhs.ptr == rhs.ptr return true
 	i := 0
-	loop if i >= lhs.len | i >= rhs.len break else {
+	loop if i >= lhs.len || i >= rhs.len break else {
 		if lhs[i] != rhs[i] return false
 		i += 1
 	}

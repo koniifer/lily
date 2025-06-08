@@ -10,7 +10,7 @@ $int_is_power_of_two_or_zero := fn(x: @Any()): bool {
 }
 
 $int_is_power_of_two := fn(x: @Any()): bool {
-	return int_is_power_of_two_or_zero(x) & x != 0
+	return int_is_power_of_two_or_zero(x) && x != 0
 }
 
 $int_one_less_than_next_power_of_two := fn(x: @Any()): @TypeOf(x) {

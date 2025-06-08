@@ -26,7 +26,6 @@
 // 
 // 3. This notice may not be removed or altered from any source distribution.
 
-
 lily.{TypeInfo, mem, target} := @use("../lib.hb")
 
 FoldHasher := @CurrentScope();
