@@ -99,6 +99,22 @@ lily.{fmt, log, mem, alloc, target, collections} := @use("lily")
 
 
 main := fn(): uint {
-	x := lily.result.Result(uint, uint).err(1).map(fn(y: uint): uint return y + 1).unwrap()
-	return x
+	arr := u8.[0, 0, 0, 0, 0]
+
+	w := lily.mem.writer(arr[..])
+	if !w.write_to_end(u8.[1, 2, 3][..]).is_ok {
+		return 1
+	}
+
+	if !w.write(u8.[1, 2, 3][..]).is_ok {
+		return 2
+	}
+
+	if w.seek(0).is_ok {
+		_ = w.write(u8.[5, 5, 5][..])
+	} else return 3
+
+	log.print(arr)
+
+	return 0
 }

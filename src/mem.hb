@@ -1,32 +1,52 @@
-lily.{target, iter: .{Iterator, Next}, config, TypeInfo, math} := @use("lib.hb")
+lily.{target, iter: .{Iterator, Next}, config, TypeInfo, math, Result} := @use("lib.hb")
 
-// todo: this
-// _Writer := fn($W: type): type return struct {
-// 	.w: W;
-// 	.cursor: uint;
+WriteError := enum {
+	.OutOfSpace;
+	.SeekOutOfBounds;
+}
 
-// 	Self := @CurrentScope()
+Writer := fn($W: type): type return struct {
+	.w: W;
+	// required if W: Slice. will remove later.
+	.cursor: uint;
 
-// 	write := fn(self: ^Self, r: @Any()): bool {
-// 		$R := @TypeOf(r)
-// 		// $if TypeInfo(R).kind != .Slice & !@compiles(R.read) {
-// 		// 	@error("don't know how to read from type ", R, " yet")
-// 		// }
-// 		// return false
-// 		$if TypeInfo(R).kind == .Slice & TypeInfo(W).kind == .Slice {
-// 			buf := w[cursor..]
-// 			if buf.len < r.len return false
-// 			move(buf, r)
-// 		}
-// 	}
-// }
-// Writer := fn(w: @Any()): _Writer(@TypeOf(w)) {
-// 	$W := @TypeOf(w)
-// 	$if TypeInfo(W).kind != .Slice & !@compiles(W.write) {
-// 		@error("don't know how to write to type ", W, " yet")
-// 	}
-// 	return .(w, 0)
-// }
+	Self := @CurrentScope()
+
+	write_to_end := fn(self: ^Self, r: @Any()): Result(void, WriteError) {
+		$R := @TypeOf(r)
+		$if R == []u8 & W == []u8 {
+			buf := self.w[self.cursor..]
+			if buf.len < r.len return .err(.OutOfSpace)
+			move(buf, r)
+			self.cursor += r.len
+		} else @error("dont know what to do with this yet")
+		return .ok({})
+	}
+	write := fn(self: ^Self, r: @Any()): Result(void, WriteError) {
+		$R := @TypeOf(r)
+		$if R == []u8 & W == []u8 {
+			buf := self.w[self.cursor..]
+			if buf.len < r.len r = r[..buf.len]
+			// probably more useful this way
+			if buf.len == 0 return .err(.OutOfSpace)
+			move(buf, r)
+			self.cursor += r.len
+		} else @error("dont know what to do with this yet")
+		return .ok({})
+	}
+	seek := fn(self: ^Self, idx: @Any()): Result(void, WriteError) {
+		$I := @TypeOf(idx)
+		$if W == []u8 & I == uint {
+			if idx >= self.w.len return .err(.SeekOutOfBounds)
+			self.cursor = idx
+		} else @error("dont know what to do with this yet")
+		return .ok({})
+	}
+}
+
+writer := fn(w: @Any()): Writer(@TypeOf(w)) {
+	return .(w, 0)
+}
 
 $size := fn($T: type, count: uint): uint {
 	return @size_of(T) * count

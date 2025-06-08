@@ -7,12 +7,13 @@ Result := fn($Ok: type, $Error: type): type return struct {
 	Self := @CurrentScope()
 
 	$ok := fn(v: Ok): Self {
-		return .(@bit_cast(v), true)
+		return .(.{ok: v}, true)
 	}
 	$err := fn(e: Error): Self {
-		return .(@bit_cast(e), false)
+		return .(.{err: e}, false)
 	}
 	$unwrap := fn(self: Self): Ok return self.expect("result: unwrap on error variant.")
+	$unwrap_err := fn(self: Self): Ok return self.expect_err("result: unwrap_err on ok variant.")
 	$expect := fn(self: Self, msg: []u8): Ok {
 		$if config.optimise < .ReleaseFast {
 			if self.is_ok return self.inner.ok
@@ -28,6 +29,18 @@ Result := fn($Ok: type, $Error: type): type return struct {
 	}
 	$map := fn(self: Self, $fnc: type): Result(@TypeOf(fnc(idk)), Error) {
 		if self.is_ok return .ok(fnc(self.inner.ok))
-		return self
+		return .err(self.inner.err)
+	}
+	$map_err := fn(self: Self, $fnc: type): Result(Ok, @TypeOf(fnc(idk))) {
+		if self.is_ok return .err(fnc(self.inner.err))
+		return .ok(self.inner.ok)
+	}
+	$to_ok := fn(self: Self): ?Ok {
+		if self.is_ok return self.inner.ok
+		return null
+	}
+	$to_err := fn(self: Self): ?Error {
+		if self.is_ok return null
+		return self.inner.err
 	}
 }
